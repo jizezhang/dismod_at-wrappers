@@ -1,4 +1,4 @@
-# Mini wrappers for dismod_at
+# Mini wrappers for `dismod_at`
 
 Wrapper(s) that demonstrates a small subset of `dismod_at`'s functionality.
 Also include related utilities functions (e.g. plotting, matching measurement data with covariates).
