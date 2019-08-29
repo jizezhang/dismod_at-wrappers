@@ -15,7 +15,7 @@ def get_age_year_value(cov, loc_ids, sex_ids):
     for loc_id in loc_ids:
         for sex_id in sex_ids:
             if loc_id in avail_locs:
-                cov_sub = cov[(cov['location_id'] == loc_id) & (cov['sex_id'] == sex_id)]
+                cov_sub = cov[(cov['location_id'] == loc_id) & (cov['sex_id'].isin([3, sex_id]))]
                 cov_sub = cov_sub.sort_values(['age_group_id', 'year_id'])
                 dct[(loc_id, sex_id)] = list(cov_sub[['age_group_id', 'year_id', 'mean_value']].values)
             else:
@@ -73,7 +73,7 @@ def interpolate(meas, covs, pop):
             total_wts = 0.0
             if len(tuples) > 0:
                 for j in range(len(tuples)):
-                    pop_value = pop[(pop['location_id'] == loc_id) & (pop['sex_id'] == sex_id)\
+                    pop_value = pop[(pop['location_id'] == loc_id) & (pop['sex_id'].isin([3, sex_id]))\
                                     & (pop['age_group_id'] == tuples[j][0]) & \
                                     (pop['year_id'] == tuples[j][1])]['population'].values
                     dct['pop_'+name].append(pop_value)
