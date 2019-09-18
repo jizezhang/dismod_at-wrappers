@@ -57,17 +57,12 @@ RUN bin/example_install.sh
 WORKDIR /home
 RUN rm -rf dismod_at.git
 
-
-# add rcfile for the use of Singularity image
-#RUN touch /home/setup_env.sh
-#RUN echo "export PATH=\"/home/prefix/dismod_at.\${BUILD_TYPE}/bin:\${PATH}\"" \
-#	>> /home/setup_env.sh
-#RUN echo "export LD_LIBRARY_PATH=\"/home/prefix/dismod_at.\${BUILD_TYPE}/lib64:\${LD_LIBRARY_PATH}\"" \
-#	>> /home/setup_env.sh
-#RUN echo "export PKG_CONFIG_PATH=\"/home/prefix/dismod_at.\${BUILD_TYPE}/lib64/pkgconfig\"" \
-#	>> /home/setup_env.sh
-#RUN echo "export PYTHONPATH=\"/home/prefix/dismod_at.\${BUILD_TYPE}/lib/python3.6/site-packages\"" \
-#	>> /home/setup_env.sh
+# add jupyter config file
+RUN touch /root/.jupyter/jupyter_notebook_config.py
+RUN echo "c.NotebookApp.ip = '0.0.0.0'" >> /root/.jupyter/jupyter_notebook_config.py
+RUN echo "c.NotebookApp.port = 8890" >> /root/.jupyter/jupyter_notebook_config.py
+RUN echo "c.NotebookApp.open_browser = False" >> /root/.jupyter/jupyter_notebook_config.py
+RUN echo "c.NotebookApp.allow_root = True" >> /root/.jupyter/jupyter_notebook_config.py
 
 ENV BUILD_TYPE="release"
 ENV PATH="/home/prefix/dismod_at.${BUILD_TYPE}/bin:${PATH}"

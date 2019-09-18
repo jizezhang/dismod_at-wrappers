@@ -9,6 +9,15 @@ import dismod_at
 program = '/home/prefix/dismod_at.release/bin/dismod_at'
 
 
+def system_command(command, verbose=True):
+    if verbose:
+        print(' '.join(command[1:]))
+    flag = subprocess.call(command)
+    if flag != 0:
+        sys.exit('command failed: flag = ' + str(flag))
+    return
+
+
 class TwoLevel:
 
     def __init__(self, data: pd.DataFrame, location_names: List[str],
@@ -23,7 +32,6 @@ class TwoLevel:
                  options: List[Dict[str, str]] = None):
 
         """
-        multiple integrands
         """
 
         self.density_dict = {'uniform': 0, 'gaussian': 1, 'laplace': 2,
@@ -61,6 +69,8 @@ class TwoLevel:
         else:
             self.time_list = []
 
+        self.zero_sum = False
+
         self.check()
 
     def check(self):
@@ -69,7 +79,8 @@ class TwoLevel:
         assert len(self.rates) == len(self.rate_parent_priors)
         assert (len(self.rates) == len(self.rate_child_priors) or len(self.rate_child_priors) == 1)
 
-    def init_database(self, use_gamma: bool = False, use_lambda: bool = True, max_iter: int = 100, tol: float = 1e-4):
+    def init_database(self, use_gamma: bool = False, use_lambda: bool = True, max_iter: int = 100, tol: float = 1e-4,
+                      zero_sum: bool = False):
         if len(self.age_list) == 0:
             max_age = -float('inf')
             min_age = float('inf')
@@ -149,7 +160,7 @@ class TwoLevel:
                                  'fun': lambda a, t, name=name: ('value_prior_' + name, 'dage_prior_' + name,
                                                                  'dtime_prior_' + name)})
 
-        self.prior_table = [{'name': 'prior_uniform', 'density': 'uniform', 'lower': 0.0, 'mean': 0.0},
+        self.prior_table = [{'name': 'prior_uniform', 'density': 'uniform', 'lower': 0.0, 'mean': 0.0, 'upper': 10.},
                             {'name': 'prior_zero', 'density': 'uniform', 'lower': 0.0, 'mean': 0.0, 'upper': 0.0}]
         for i in range(len(self.rates)):
             self.prior_table.append({'name': 'value_prior_' + self.rates[i]})
@@ -204,7 +215,7 @@ class TwoLevel:
                     row[cov['name']] = self.data.loc[data_id, cov['name']]
                 self.data_table.append(copy.copy(row))
 
-        option_table = [
+        self.option_table = [
             {'name': 'parent_node_name', 'value': 'world'},
             {'name': 'ode_step_size', 'value': '10.0'},
             {'name': 'quasi_fixed', 'value': 'false'},
@@ -212,22 +223,28 @@ class TwoLevel:
             {'name': 'print_level_fixed', 'value': '5'},
             {'name': 'tolerance_fixed', 'value': str(tol)},
             {'name': 'meas_noise_effect', 'value': 'add_var_scale_all'},
+            #{'name': 'zero_sum_random', 'value': 'iota'},
         ]
+
+        if zero_sum and not self.zero_sum:
+            self.option_table.append({'name': 'zero_sum_random', 'value': 'iota'})
+            self.zero_sum = True
+
         if self.integrand == ['Sincidence']:
-            option_table.append({'name': 'rate_case', 'value': 'iota_pos_rho_zero'})
+            self.option_table.append({'name': 'rate_case', 'value': 'iota_pos_rho_zero'})
         elif self.integrand == ['remission']:
-            option_table.append({'name': 'rate_case', 'value': 'iota_zero_rho_pos'})
+            self.option_table.append({'name': 'rate_case', 'value': 'iota_zero_rho_pos'})
         else:
-            option_table.append({'name': 'rate_case', 'value': 'iota_pos_rho_pos'})
+            self.option_table.append({'name': 'rate_case', 'value': 'iota_pos_rho_pos'})
 
         option_name_id = {}
-        for i in range(len(option_table)):
-            option_name_id[option_table[i]['name']] = i
+        for i in range(len(self.option_table)):
+            option_name_id[self.option_table[i]['name']] = i
         for option in self.options:
             if option['name'] in option_name_id:
-                option_table[option_name_id[option['name']]]['value'] = option['value']
+                self.option_table[option_name_id[option['name']]]['value'] = option['value']
             else:
-                option_table.append(option)
+                self.option_table.append(option)
 
         dismod_at.create_database(
             self.path,
@@ -244,7 +261,7 @@ class TwoLevel:
             nslist_table,
             rate_table,
             mulcov_table,
-            option_table
+            self.option_table
         )
 
     def initialize(self, db2csv=False):
@@ -257,19 +274,16 @@ class TwoLevel:
             dismod_at.db2csv_command(self.path)
 
     def fit_fixed(self, tol: float = 1e-4, use_gamma: bool = False, use_lambda: bool = False,
-                  db2csv: bool = True, max_iter: int = 100):
-        self.init_database(use_gamma=use_gamma, use_lambda=use_lambda, tol=tol, max_iter=max_iter)
+                  db2csv: bool = True, max_iter: int = 100, zero_sum: bool = False):
+        self.init_database(use_gamma=use_gamma, use_lambda=use_lambda, tol=tol, max_iter=max_iter, zero_sum=zero_sum)
         self.initialize()
-        command = [program, self.path, 'fit', 'fixed']
-        print(' '.join(command[1:]))
-        flag = subprocess.call(command)
-        if flag != 0:
-            sys.exit('The dismod_at fit fixed command failed')
+        system_command([program, self.path, 'fit', 'fixed'])
         if db2csv:
             dismod_at.db2csv_command(self.path)
 
-    def fit_both(self, use_gamma: bool = False, use_lambda: bool = True, tol: float = 1e-4,
-                 fit_fixed: bool = True, db2csv: bool = True, max_iter: int = 100, fit_gaussian: bool = False):
+    def fit_both(self, use_gamma: bool = False, use_lambda: bool = False, tol: float = 1e-4,
+                 fit_fixed: bool = True, db2csv: bool = True, max_iter: int = 100, fit_gaussian: bool = False,
+                 zero_sum: bool = False):
 
         if fit_gaussian:
             for i, row in enumerate(self.data_table):
@@ -277,14 +291,11 @@ class TwoLevel:
 
         if fit_fixed:
             self.fit_fixed(use_gamma=use_gamma, use_lambda=use_lambda,
-                           tol=tol, db2csv=False, max_iter=max_iter)
-            command = [program, self.path, 'set', 'start_var', 'fit_var']
-            print(' '.join(command[1:]))
-            flag = subprocess.call(command)
-            if flag != 0:
-                sys.exit('The dismod_at set command failed')
+                           tol=tol, db2csv=False, max_iter=max_iter, zero_sum=zero_sum)
+            system_command([program, self.path, 'set', 'start_var', 'fit_var'])
         else:
-            self.init_database(use_gamma=use_gamma, use_lambda=use_lambda, tol=tol, max_iter=max_iter)
+            self.init_database(use_gamma=use_gamma, use_lambda=use_lambda, tol=tol, max_iter=max_iter,
+                               zero_sum=zero_sum)
             self.initialize()
 
         if fit_gaussian:
