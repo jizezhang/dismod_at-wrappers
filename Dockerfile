@@ -34,10 +34,11 @@ RUN pip3 install jupyter
 
 # clone the refered version of dismod_at repository
 WORKDIR /home
+RUN rm -rf dismod_at
 RUN git clone https://github.com/bradbell/dismod_at.git
 WORKDIR /home/dismod_at
 RUN git pull
-RUN git checkout bd34020c4f01083ad257925ef83abd9dcc107488
+RUN git checkout 74f5aed897f534376c8ccf08042276252beb5de5
 
 RUN mkdir /home/prefix
 RUN sed -i bin/run_cmake.sh -e 's|$HOME/|/home/|g'
@@ -58,6 +59,7 @@ WORKDIR /home
 RUN rm -rf dismod_at.git
 
 # add jupyter config file
+RUN mkdir /root/.jupyter
 RUN touch /root/.jupyter/jupyter_notebook_config.py
 RUN echo "c.NotebookApp.ip = '0.0.0.0'" >> /root/.jupyter/jupyter_notebook_config.py
 RUN echo "c.NotebookApp.port = 8890" >> /root/.jupyter/jupyter_notebook_config.py
