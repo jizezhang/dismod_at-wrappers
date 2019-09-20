@@ -17,16 +17,20 @@ Documentation can be found [here](https://bradbell.github.io/dismod_at/doc/dismo
 *  Use `docker images` to check that the image is built successfully.
 *  To run the demo jupyter notebooks, use the command
    ```
-   docker run -v {local_path_to_repo} -p 8888:8888 -it dismod_at:{tag}
+   docker run -v {local_path_to_repo} -p 8890:8890 -it dismod_at:{tag}
    ```
-   You can change the port to be different.
+   You can change the host port number.
 
 * Inside a docker container, run
   ```
-  jupyter notebook --generate-config
-  jupyter notebook --ip=0.0.0.0 --port=8888 --no-browser --allow-root
+  jupyter notebook
   ```
   Copy the link popped out in the terminal and open it in the browser.
+  You can edit
+  ```
+  /root/.jupyter/jupyter_notebook_config.py
+  ```
+  to change settings.
 
 ### Wrapper files
 
