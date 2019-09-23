@@ -122,6 +122,7 @@ class DismodDB:
             'weight': 'constant',
             'gamma_one': 1.0,
             'intercept': 1.0,
+            'hold_out': False,
         }
         for data_id in range(self.n):
             if self.data.loc[data_id, 'measure'] in self.integrand and \
@@ -129,7 +130,8 @@ class DismodDB:
                 row['node'] = self.data.loc[data_id, 'location_name']
                 row['integrand'] = self.data.loc[data_id, 'measure']
                 row.update(self.meas_noise_density[row['integrand']])
-                row['hold_out'] = self.data.loc[data_id, 'hold_out']
+                if 'hold_out' in self.data.columns:
+                    row['hold_out'] = self.data.loc[data_id, 'hold_out']
                 row['meas_value'] = self.data.loc[data_id, 'mean']
                 row['meas_std'] = self.data.loc[data_id, 'standard_error']
                 row['age_lower'] = self.data.loc[data_id, 'age_start']
@@ -141,13 +143,16 @@ class DismodDB:
                 self.data_table.append(copy.copy(row))
 
     def create_avgint_table(self):
+
+        rate_to_integrand = {'iota': 'Sincidence', 'rho': 'remission', 'chi': 'mtexcess', 'omega': 'mtother'}
+
         self.avgint_table = []
-        row = {'intercept': 1.0}
+        row = {'intercept': 1.0, 'weight': 'constant', 'gamma_one': 1.0}
         for rate in self.rates:
             for age in self.age_list:
                 for time in self.time_list:
                     for loc in self.location_names:
-                        row['integrand'] = rate
+                        row['integrand'] = rate_to_integrand[rate]
                         row['node'] = loc
                         row['age_lower'] = age
                         row['age_upper'] = age
@@ -159,12 +164,12 @@ class DismodDB:
 
     def create_smooth_table(self):
         self.smooth_table = [{'name': 'smooth_gamma_one',
-                              'age_id': int(len(self.age_list)/2),
-                              'time_id': int(len(self.time_list)/2),
+                              'age_id': [int(len(self.age_list)/2)],
+                              'time_id': [int(len(self.time_list)/2)],
                               'fun': lambda a, t: ('prior_gamma_one', None, None)},
                              {'name': 'smooth_intercept',
-                              'age_id': int(len(self.age_list)/2),
-                              'time_id': int(len(self.time_list)/2),
+                              'age_id': [int(len(self.age_list)/2)],
+                              'time_id': [int(len(self.time_list)/2)],
                               'fun': lambda a, t: ('prior_intercept', None, None)}]
         for rate in self.rates:
             self.smooth_table.append({'name': 'smooth_rate_' + rate,
@@ -239,7 +244,7 @@ class DismodDB:
         for intg in self.integrand:
             self.integrand_table.append({'name': intg})
 
-        self.node_table = [{'name': 'world', 'parent': ''}]
+        self.node_table = [{'name': 'all', 'parent': ''}]
         for loc in self.location_names:
             self.node_table.append({'name': loc, 'parent': 'all'})
 
