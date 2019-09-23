@@ -40,7 +40,7 @@ class TwoLevel:
         self.db.set_max_iteration(max_iter)
         if zero_sum:
             self.db.set_zero_sum_constraint()
-        self.db.init_database(db2csv=db2csv)
+        self.initialize(db2csv=False)
         system_command([program, self.db_path, 'fit', 'fixed'])
         if db2csv:
             dismod_at.db2csv_command(self.db_path)
@@ -58,10 +58,16 @@ class TwoLevel:
             self.db.set_tol(tol)
             self.db.set_max_iteration(max_iter)
             if zero_sum:
-                self.db.init_database(db2csv=db2csv)
+                self.db.set_zero_sum_constraint()
+            self.initialize(db2csv=False)
 
         if fit_gaussian:
             self.db.reset_meas_density()
 
         system_command([program, self.db_path, 'fit', 'both'])
+        system_command([program, self.db_path, 'predict', 'fit_var'])
+
+        if db2csv:
+            dismod_at.db2csv_command(self.db_path)
+
 

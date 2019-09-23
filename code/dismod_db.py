@@ -162,6 +162,37 @@ class DismodDB:
                     row['node'] = 'all'
                     self.avgint_table.append(copy.copy(row))
 
+        for integrand in self.integrand:
+            for age in self.age_list:
+                for time in self.time_list:
+                    for loc in self.location_names:
+                        row['integrand'] = integrand
+                        row['node'] = loc
+                        row['age_lower'] = age
+                        row['age_upper'] = age
+                        row['time_lower'] = time
+                        row['time_upper'] = time
+                        self.avgint_table.append(copy.copy(row))
+                    row['node'] = 'all'
+                    self.avgint_table.append(copy.copy(row))
+
+        for i in range(len(self.covariates)):
+            for age in self.age_list:
+                for time in self.time_list:
+                    for loc in self.location_names:
+                        assert self.mulcov_table[i+2]['covariate'] == self.covariates[i]['name']
+                        row['integrand'] = 'mulcov_' + str(i+2)
+                        row['node'] = loc
+                        row['age_lower'] = age
+                        row['age_upper'] = age
+                        row['time_lower'] = time
+                        row['time_upper'] = time
+                        self.avgint_table.append(copy.copy(row))
+                    row['node'] = 'all'
+                    self.avgint_table.append(copy.copy(row))
+
+
+
     def create_smooth_table(self):
         self.smooth_table = [{'name': 'smooth_gamma_one',
                               'age_id': [int(len(self.age_list)/2)],
