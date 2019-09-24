@@ -27,13 +27,7 @@ class TwoLevel:
         self.db_path = db.path
 
     def initialize(self, db2csv=False):
-        command = [program, self.db_path, 'init']
-        print(' '.join(command))
-        flag = subprocess.call(command)
-        if flag != 0:
-            sys.exit('The dismod_at init command failed')
-        if db2csv is True:
-            dismod_at.db2csv_command(self.db_path)
+        self.db.init_database(db2csv)
 
     def fit_fixed(self, tol: float = 1e-4, db2csv: bool = True, max_iter: int = 100, zero_sum: bool = False):
         self.db.set_tol(tol)
@@ -63,6 +57,7 @@ class TwoLevel:
 
         if fit_gaussian:
             self.db.reset_meas_density()
+            self.initialize(db2csv=False)
 
         system_command([program, self.db_path, 'fit', 'both'])
         system_command([program, self.db_path, 'predict', 'fit_var'])

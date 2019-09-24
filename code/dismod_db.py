@@ -67,14 +67,14 @@ class DismodDB:
         assert (len(self.rates) == len(self.rate_child_priors) or len(self.rate_child_priors) == 1)
 
     def create_tables(self):
-        self.create_default_tables()
-        self.create_data_table()
         self.create_cov_table()
         self.create_mulcov_table()
+        self.create_data_table()
         self.create_smooth_table()
         self.create_prior_table()
-        self.create_avgint_table()
         self.create_option_table()
+        self.create_avgint_table()  # will add mulcov_id to self.integrand
+        self.create_default_tables()
 
     def create_age_list(self):
         max_age = -float('inf')
@@ -146,27 +146,17 @@ class DismodDB:
 
         rate_to_integrand = {'iota': 'Sincidence', 'rho': 'remission', 'chi': 'mtexcess', 'omega': 'mtother'}
 
+        used = set()
+
         self.avgint_table = []
         row = {'intercept': 1.0, 'weight': 'constant', 'gamma_one': 1.0}
+        row.update({cov['name']: 0.0 for cov in self.covariates})
         for rate in self.rates:
             for age in self.age_list:
                 for time in self.time_list:
                     for loc in self.location_names:
                         row['integrand'] = rate_to_integrand[rate]
-                        row['node'] = loc
-                        row['age_lower'] = age
-                        row['age_upper'] = age
-                        row['time_lower'] = time
-                        row['time_upper'] = time
-                        self.avgint_table.append(copy.copy(row))
-                    row['node'] = 'all'
-                    self.avgint_table.append(copy.copy(row))
-
-        for integrand in self.integrand:
-            for age in self.age_list:
-                for time in self.time_list:
-                    for loc in self.location_names:
-                        row['integrand'] = integrand
+                        used.add(rate_to_integrand[rate])
                         row['node'] = loc
                         row['age_lower'] = age
                         row['age_upper'] = age
@@ -177,23 +167,43 @@ class DismodDB:
                     self.avgint_table.append(copy.copy(row))
 
         for i in range(len(self.covariates)):
-            for age in self.age_list:
-                for time in self.time_list:
-                    for loc in self.location_names:
-                        assert self.mulcov_table[i+2]['covariate'] == self.covariates[i]['name']
-                        row['integrand'] = 'mulcov_' + str(i+2)
-                        row['node'] = loc
-                        row['age_lower'] = age
-                        row['age_upper'] = age
-                        row['time_lower'] = time
-                        row['time_upper'] = time
+            assert self.mulcov_table[i+2]['covariate'] == self.covariates[i]['name']
+            self.integrand.append('mulcov_' + str(i+2))
+
+        for integrand in self.integrand:
+            if integrand not in used:
+                for age in self.age_list:
+                    for time in self.time_list:
+                        for loc in self.location_names:
+                            row['integrand'] = integrand
+                            row['node'] = loc
+                            row['age_lower'] = age
+                            row['age_upper'] = age
+                            row['time_lower'] = time
+                            row['time_upper'] = time
+                            self.avgint_table.append(copy.copy(row))
+                        row['node'] = 'all'
                         self.avgint_table.append(copy.copy(row))
-                    row['node'] = 'all'
-                    self.avgint_table.append(copy.copy(row))
+
+        # for i in range(len(self.covariates)):
+        #     for age in self.age_list:
+        #         for time in self.time_list:
+        #             for loc in self.location_names:
+        #                 assert self.mulcov_table[i+2]['covariate'] == self.covariates[i]['name']
+        #                 row['integrand'] = 'mulcov_' + str(i+2)
+        #                 row['node'] = loc
+        #                 row['age_lower'] = age
+        #                 row['age_upper'] = age
+        #                 row['time_lower'] = time
+        #                 row['time_upper'] = time
+        #                 self.avgint_table.append(copy.copy(row))
+        #             row['node'] = 'all'
+        #             self.avgint_table.append(copy.copy(row))
+        #             #print(self.avgint_table[-1])
 
 
 
-    def create_smooth_table(self):
+    def create_smooth_table(self, sparse_child_grid: bool = True):
         self.smooth_table = [{'name': 'smooth_gamma_one',
                               'age_id': [int(len(self.age_list)/2)],
                               'time_id': [int(len(self.time_list)/2)],
@@ -208,10 +218,19 @@ class DismodDB:
                                       'fun': lambda a, t, r=rate: ('value_prior_' + r,
                                                                    'dage_prior_' + r, 'dtime_prior_' + r)})
             # use sparse grid for child random effects
-            self.smooth_table.append({'name': 'smooth_rate_child_' + rate,
-                                      'age_id': [0, len(self.age_list) - 1], 'time_id': [0, len(self.time_list) - 1],
-                                      'fun': lambda a, t, r=rate: ('value_prior_child_' + r,
-                                                                   'dage_prior_child_' + r, 'dtime_prior_child_' + r)})
+            if sparse_child_grid:
+                self.smooth_table.append({'name': 'smooth_rate_child_' + rate,
+                                          'age_id': [0, len(self.age_list) - 1], 'time_id': [0, len(self.time_list) - 1],
+                                          'fun': lambda a, t, r=rate: ('value_prior_child_' + r,
+                                                                       'dage_prior_child_' + r, 'dtime_prior_child_' + r)})
+            else:
+                self.smooth_table.append({'name': 'smooth_rate_child_' + rate,
+                                          'age_id': range(len(self.age_list)),
+                                          'time_id': range(len(self.time_list)),
+                                          'fun': lambda a, t, r=rate: ('value_prior_child_' + r,
+                                                                       'dage_prior_child_' + r,
+                                                                       'dtime_prior_child_' + r)})
+
         for cov in self.covariates:
             name = cov['name']
             self.smooth_table.append({'name': 'smooth_mulcov_' + cov['name'],

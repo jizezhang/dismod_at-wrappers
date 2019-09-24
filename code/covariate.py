@@ -54,6 +54,7 @@ def pop_val_dict(df, locations):
 
 
 def interpolate(meas, covs, pop):
+    meas = meas.reset_index(drop=True)
     loc_ids = sorted(meas.location_id.unique())
     sex_ids = [1, 2, 3]
     cov_age_year_value = {}
