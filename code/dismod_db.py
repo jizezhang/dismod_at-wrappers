@@ -19,7 +19,8 @@ class DismodDB:
                  path_to_db: str,
                  covariates: List[Dict[str, str]] = None,
                  cov_priors: List[Tuple[Dict[str, str], ...]] = None,
-                 age_list: List[int] = None, time_list: List[int] = None):
+                 age_list: List[int] = None, time_list: List[int] = None,
+                 sparse_child_grid: bool = True):
 
         """
         """
@@ -57,6 +58,8 @@ class DismodDB:
         else:
             self.time_list = self.create_time_list()
 
+        self.sparse_child_grid = sparse_child_grid
+
         self.check()
         self.create_tables()
 
@@ -70,7 +73,7 @@ class DismodDB:
         self.create_cov_table()
         self.create_mulcov_table()
         self.create_data_table()
-        self.create_smooth_table()
+        self.create_smooth_table(self.sparse_child_grid)
         self.create_prior_table()
         self.create_option_table()
         self.create_avgint_table()  # will add mulcov_id to self.integrand
@@ -201,8 +204,6 @@ class DismodDB:
         #             self.avgint_table.append(copy.copy(row))
         #             #print(self.avgint_table[-1])
 
-
-
     def create_smooth_table(self, sparse_child_grid: bool = True):
         self.smooth_table = [{'name': 'smooth_gamma_one',
                               'age_id': [int(len(self.age_list)/2)],
@@ -330,7 +331,7 @@ class DismodDB:
         for i, row in enumerate(self.data_table):
             self.data_table[i].update(self.meas_noise_density[row['integrand']])
 
-    def init_database(self, db2csv=True):
+    def init_database(self, db2csv: bool = True):
 
         dismod_at.create_database(
             self.path,
