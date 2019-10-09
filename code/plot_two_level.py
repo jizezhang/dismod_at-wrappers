@@ -109,10 +109,13 @@ class PlotTwoLevel:
                 plt.legend()
             if plot_data:
                 for j, row in data_sub.iterrows():
+                    color = 'tab:grey'
+                    if np.abs(row['residual']) >= 3.:
+                        color = 'rosybrown'
                     plt.plot([row['age_lo'], row['age_up']],
-                             [row['meas_value'], row['meas_value']], '-', color='tab:grey', linewidth=.5)
+                             [row['meas_value'], row['meas_value']], '-', color=color, linewidth=.5)
                     if row['age_lo'] == row['age_up']:
-                        plt.plot(row['age_lo'], row['meas_value'], '.', color='tab:gray', markersize=5)
+                        plt.plot(row['age_lo'], row['meas_value'], '.', color=color, markersize=5)
 
     def plot_change_over_time(self, type: str, name: str, measurement: str, location: str,
                              age_idx: List[int] = None, legend: bool = True, ylim: List[float] = None,
@@ -155,10 +158,13 @@ class PlotTwoLevel:
                 plt.legend()
             if plot_data:
                 for j, row in data_sub.iterrows():
+                    color = 'tab:grey'
+                    if row['residual'] >= 3.:
+                        color = 'rosybrown'
                     plt.plot([row['time_lo'], row['time_up']],
-                             [row['meas_value'], row['meas_value']], '-', color='tab:grey', linewidth=.5)
+                             [row['meas_value'], row['meas_value']], '-', color=color, linewidth=.5)
                     if row['time_lo'] == row['time_up']:
-                        plt.plot(row['time_lo'], row['meas_value'], '.', color='tab:gray', markersize=5)
+                        plt.plot(row['time_lo'], row['meas_value'], '.', color=color, markersize=5)
 
 # def plot_change_over_age(type: str, name: str, measurement: str, location: str,
 #                          path_to_variable_csv: str,
