@@ -21,7 +21,7 @@ class PlotTwoLevel:
 
         self.integrand_values = self.db_output.get_integrand_values()
         self.data_values = pd.read_csv(self.path_to_data)
-        self.cov_name_to_id = self.db_output.get_covarates()
+        self.cov_name_to_id = self.db_output.get_covarates_names()
 
         self.rate_to_integrand = {'iota': 'Sincidence', 'rho': 'remission', 'chi': 'mtexcess', 'omega': 'mtother'}
 
