@@ -5,6 +5,7 @@ import copy
 import pandas as pd
 from typing import Dict, List, Any, Tuple
 import dismod_at
+import os
 
 program = '/home/prefix/dismod_at.release/bin/dismod_at'
 
@@ -350,6 +351,9 @@ class DismodDB:
             self.mulcov_table,
             self.option_table
         )
+
+        if not os.path.exists(self.path):
+            os.mknod(self.path)
 
         command = [program, self.path, 'init']
         print(' '.join(command))

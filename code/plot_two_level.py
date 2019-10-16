@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 from typing import List
 from dismod_output import DismodOutput
 import dismod_at
+import os
 
 program = '/home/prefix/dismod_at.release/bin/dismod_at'
 
@@ -11,8 +12,7 @@ program = '/home/prefix/dismod_at.release/bin/dismod_at'
 class PlotTwoLevel:
 
     def __init__(self, path_to_folder, db_file_name):
-        assert path_to_folder[-1] == '/'
-        self.path_to_db = path_to_folder + db_file_name
+        self.path_to_db = os.path.join(path_to_folder + db_file_name)
         dismod_at.db2csv_command(self.path_to_db)
         self.db_output = DismodOutput(self.path_to_db)
 
@@ -101,6 +101,7 @@ class PlotTwoLevel:
                 plt.title(name+' plot across age')
                 if ylim is not None:
                     plt.ylim(ylim)
+            print(self.age_list, Z.shape)
             plt.plot(self.age_list, Z[i, :], '-', label="time " + str(self.time_list[i]))
             plt.xlabel('age')
             plt.ylabel(type+' '+name)

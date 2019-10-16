@@ -17,7 +17,7 @@ Documentation can be found [here](https://bradbell.github.io/dismod_at/doc/dismo
 *  Use `docker images` to check that the image is built successfully.
 *  To run the demo jupyter notebooks, use the command
    ```
-   docker run -v {local_path_to_repo} -p 8890:8890 -it dismod_at:{tag}
+   docker run -v "$(pwd)":/home/work -p 8890:8890 -it dismod_at:{tag}
    ```
    You can change the host port number.
 

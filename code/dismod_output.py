@@ -17,8 +17,9 @@ assert len(age_intervals) == len(age_group_ids)
 n_age = len(age_group_ids)
 age_id_to_range = {age_group_ids[i]: age_intervals[i] for i in range(n_age)}
 
-integrand_to_measure_id = {8: 5, 1: 7, 2: 9, 5: 11, 12: 12, 4: 13, 11: 14, 10: 15, 3: 16, 0: 41, 6: 39, 7: 40, 9: 42}
-
+integrand_to_measure_id = {'prevalence': 5, 'remission': 7, 'mtexcess': 9, 'relrisk': 11, 'mtstandard': 12,
+                           'mtwith': 13, 'mtall': 14, 'mtspecific': 15, 'mtother': 16, 'Sincidence': 41,
+                           'susceptible': 39, 'withC': 40, 'Tincidence': 42}
 
 def system_command(command, verbose=True):
     if verbose:
@@ -80,7 +81,7 @@ class DismodOutput:
         conn.close()
         return df
 
-    def create_GBD_integrand(self, integrand_ids: List[int], time_list: List[int], location_name_to_id: Dict[str, int]):
+    def create_GBD_integrand(self, integrands: List[str], time_list: List[int], location_name_to_id: Dict[str, int]):
         path = self.path_to_db[:-3] + '_gbd.db'
         print(path)
         shutil.copyfile(self.path_to_db, path)
@@ -88,10 +89,19 @@ class DismodOutput:
         crsr = connection.cursor()
         crsr.execute('select count(covariate_id) from covariate')
         n_covs = crsr.fetchall()[0][0]
+        crsr.execute("drop table integrand")
+        row_list = []
+        for name in integrands:
+            row_list.append([0.0, name])
+        print(row_list)
+        dismod_at.create_table(connection, 'integrand',
+                               ['minimum_meas_cv', 'integrand_name'],
+                               ['real', 'text'], row_list)
+
         crsr.execute("drop table avgint")
 
         row_list = []
-        for integrand_id in integrand_ids:
+        for integrand_id in range(len(integrands)):
             for age_id in age_group_ids:
                 for time in time_list:
                     for node_id, node_name in self.node_id_to_loc.items():
@@ -103,7 +113,7 @@ class DismodOutput:
                                 row = [integrand_id, node_id, None, age_lower, age_upper, time, time]
                                 row.extend([None]*n_covs)
                                 row.extend([location_name_to_id[node_name], age_id, time,
-                                            integrand_to_measure_id[integrand_id]])
+                                            integrand_to_measure_id[integrands[integrand_id]]])
                                 row_list.append(row + [1])
                                 row_list.append(row + [2])
 
@@ -116,9 +126,9 @@ class DismodOutput:
         connection.close()
         system_command([program, path, 'predict', 'fit_var'])
 
-    def save_GBD_output(self, integrand_ids: List[int], time_list: List[int], location_name_to_id: Dict[str, int],
+    def save_GBD_output(self, integrands: List[str], time_list: List[int], location_name_to_id: Dict[str, int],
                         path_to_csv: str):
-        self.create_GBD_integrand(integrand_ids, time_list, location_name_to_id)
+        self.create_GBD_integrand(integrands, time_list, location_name_to_id)
         df = self.get_integrand_values(self.path_to_db[:-3] + '_gbd.db')
         gbd_output = df[['location_id', 'age_group_id', 'sex_id', 'year_id', 'measure_id', 'avg_integrand']]
         gbd_output.to_csv(path_to_csv)
