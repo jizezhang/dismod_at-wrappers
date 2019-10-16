@@ -34,10 +34,12 @@ Documentation can be found [here](https://bradbell.github.io/dismod_at/doc/dismo
 
 ### Wrapper files
 
+* `dismod_db.py`: create a `dismod_at` database.
 * `two_level.py`: run a two_level nonlinear random effects model (i.e. one parent
    with multiple children). also has the option to run just one-level,
    ignoring the parent-children structure.
 * `plot_two_level.py`: plot residuals, age/time pattern for rates and covariate values for each child.
+* `dismod_output.py`: generate output that conforms to GBD format at IHME. 
 * `covariate.py`: match covariate to measurement data using population weighted smoothing.
 
 #### older
