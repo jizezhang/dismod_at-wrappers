@@ -80,9 +80,9 @@ class PlotTwoLevel:
         if type == 'rate':
             var = self.integrand_values[(self.integrand_values['integrand_name'] == self.rate_to_integrand[name]) &
                                         (self.integrand_values['node_name'] == location)]
-        elif type == 'covariate':
-            var = self.integrand_values[(self.integrand_values['integrand_name'] == self.cov_name_to_id[name]) &
-                                        (self.integrand_values['node_name'] == location)]
+        #elif type == 'covariate':
+        #    var = self.integrand_values[(self.integrand_values['integrand_name'] == self.cov_name_to_id[name]) &
+        #                                (self.integrand_values['node_name'] == location)]
 
         ntimes = len(self.time_list)
         var.sort_values(by=['age_lower'])
@@ -101,7 +101,7 @@ class PlotTwoLevel:
                 plt.title(name+' plot across age')
                 if ylim is not None:
                     plt.ylim(ylim)
-            print(self.age_list, Z.shape)
+            #print(self.age_list, Z.shape)
             plt.plot(self.age_list, Z[i, :], '-', label="time " + str(self.time_list[i]))
             plt.xlabel('age')
             plt.ylabel(type+' '+name)
@@ -131,9 +131,9 @@ class PlotTwoLevel:
         if type == 'rate':
             var = self.integrand_values[(self.integrand_values['integrand_name'] == self.rate_to_integrand[name]) &
                                         (self.integrand_values['node_name'] == location)]
-        elif type == 'covariate':
-            var = self.integrand_values[(self.integrand_values['integrand_name'] == self.cov_name_to_id[name]) &
-                                        (self.integrand_values['node_name'] == location)]
+        #elif type == 'covariate':
+        #    var = self.integrand_values[(self.integrand_values['integrand_name'] == self.cov_name_to_id[name]) &
+        #                                (self.integrand_values['node_name'] == location)]
 
         nages = len(self.age_list)
         var.sort_values(by=['age_lower'])

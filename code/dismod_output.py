@@ -68,6 +68,17 @@ class DismodOutput:
 
         return cov_name_to_id
 
+    def get_covariate_multiplier_values(self, cov_names: List[str] = None):
+        conn = sqlite3.connect(self.path_to_db)
+        df = pd.read_sql_query("select covariate_name, fit_var_value \
+                               from covariate inner join mulcov on covariate.covariate_id == mulcov.covariate_id \
+                               left join var on mulcov.covariate_id == var.covariate_id \
+                               left join fit_var on fit_var.fit_var_id == var.var_id;", conn)
+        conn.close()
+        if cov_names is not None:
+            return df[df['covariate_name'].isin(cov_names)]
+        return df
+
     def get_integrand_values(self, path_to_db=None):
         if path_to_db is None:
             conn = sqlite3.connect(self.path_to_db)
@@ -81,7 +92,8 @@ class DismodOutput:
         conn.close()
         return df
 
-    def create_GBD_integrand(self, integrands: List[str], time_list: List[int], location_name_to_id: Dict[str, int]):
+    def create_GBD_integrand(self, integrands: List[str], time_list: List[int], sex_ids: List[int],
+                             location_name_to_id: Dict[str, int]):
         path = self.path_to_db[:-3] + '_gbd.db'
         print(path)
         shutil.copyfile(self.path_to_db, path)
@@ -114,8 +126,8 @@ class DismodOutput:
                                 row.extend([None]*n_covs)
                                 row.extend([location_name_to_id[node_name], age_id, time,
                                             integrand_to_measure_id[integrands[integrand_id]]])
-                                row_list.append(row + [1])
-                                row_list.append(row + [2])
+                                for sex_id in sex_ids:
+                                    row_list.append(row + [sex_id])
 
         dismod_at.create_table(connection, 'avgint', ['integrand_id', 'node_id', 'weight_id', 'age_lower', 'age_upper',
                                                       'time_lower', 'time_upper'] +
@@ -126,9 +138,9 @@ class DismodOutput:
         connection.close()
         system_command([program, path, 'predict', 'fit_var'])
 
-    def save_GBD_output(self, integrands: List[str], time_list: List[int], location_name_to_id: Dict[str, int],
+    def save_GBD_output(self, integrands: List[str], time_list: List[int], sex_ids: List[int], location_name_to_id: Dict[str, int],
                         path_to_csv: str):
-        self.create_GBD_integrand(integrands, time_list, location_name_to_id)
+        self.create_GBD_integrand(integrands, time_list, sex_ids, location_name_to_id)
         df = self.get_integrand_values(self.path_to_db[:-3] + '_gbd.db')
         gbd_output = df[['location_id', 'age_group_id', 'sex_id', 'year_id', 'measure_id', 'avg_integrand']]
         gbd_output.to_csv(path_to_csv)
