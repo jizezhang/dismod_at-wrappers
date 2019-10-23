@@ -142,5 +142,9 @@ class DismodOutput:
                         path_to_csv: str):
         self.create_GBD_integrand(integrands, time_list, sex_ids, location_name_to_id)
         df = self.get_integrand_values(self.path_to_db[:-3] + '_gbd.db')
-        gbd_output = df[['location_id', 'age_group_id', 'sex_id', 'year_id', 'measure_id', 'avg_integrand']]
-        gbd_output.to_csv(path_to_csv)
+        df.rename(columns={'avg_integrand': 'mean'}, inplace=True)
+        df['lower'] = df['mean']  # dummy fill-in for now
+        df['upper'] = df['mean']
+        gbd_output = df[['location_id', 'age_group_id', 'sex_id', 'year_id', 'measure_id', 'mean', 'lower', 'upper']]
+        gbd_output.reset_index(drop=True, inplace=True)
+        gbd_output.to_csv(path_to_csv, index=False)
