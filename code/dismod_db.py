@@ -21,7 +21,7 @@ class DismodDB:
                  covariates: List[Dict[str, str]] = None,
                  cov_priors: List[Tuple[Dict[str, str], ...]] = None,
                  age_list: List[int] = None, time_list: List[int] = None,
-                 sparse_child_grid: bool = True):
+                 child_grid: str = "one"):
 
         """
         """
@@ -59,7 +59,7 @@ class DismodDB:
         else:
             self.time_list = self.create_time_list()
 
-        self.sparse_child_grid = sparse_child_grid
+        self.child_grid = child_grid
 
         self.check()
         self.create_tables()
@@ -74,7 +74,7 @@ class DismodDB:
         self.create_cov_table()
         self.create_mulcov_table()
         self.create_data_table()
-        self.create_smooth_table(self.sparse_child_grid)
+        self.create_smooth_table(self.child_grid)
         self.create_prior_table()
         self.create_option_table()
         self.create_avgint_table()  # will add mulcov_id to self.integrand
@@ -205,7 +205,7 @@ class DismodDB:
         #             self.avgint_table.append(copy.copy(row))
         #             #print(self.avgint_table[-1])
 
-    def create_smooth_table(self, sparse_child_grid: bool = True):
+    def create_smooth_table(self, child_grid: bool = True):
         self.smooth_table = [{'name': 'smooth_gamma_one',
                               'age_id': [int(len(self.age_list)/2)],
                               'time_id': [int(len(self.time_list)/2)],
@@ -220,11 +220,19 @@ class DismodDB:
                                       'fun': lambda a, t, r=rate: ('value_prior_' + r,
                                                                    'dage_prior_' + r, 'dtime_prior_' + r)})
             # use sparse grid for child random effects
-            if sparse_child_grid:
+            if child_grid == "one":
+                self.smooth_table.append({'name': 'smooth_rate_child_' + rate,
+                                          'age_id': [len(self.age_list)//2],
+                                          'time_id': [len(self.time_list)//2],
+                                          'fun': lambda a, t, r=rate: ('value_prior_child_' + r,
+                                                                       'dage_prior_child_' + r,
+                                                                       'dtime_prior_child_' + r)})
+            elif child_grid == "two":
                 self.smooth_table.append({'name': 'smooth_rate_child_' + rate,
                                           'age_id': [0, len(self.age_list) - 1], 'time_id': [0, len(self.time_list) - 1],
                                           'fun': lambda a, t, r=rate: ('value_prior_child_' + r,
-                                                                       'dage_prior_child_' + r, 'dtime_prior_child_' + r)})
+                                                                       'dage_prior_child_' + r,
+                                                                       'dtime_prior_child_' + r)})
             else:
                 self.smooth_table.append({'name': 'smooth_rate_child_' + rate,
                                           'age_id': range(len(self.age_list)),
@@ -236,7 +244,7 @@ class DismodDB:
         for cov in self.covariates:
             name = cov['name']
             self.smooth_table.append({'name': 'smooth_mulcov_' + cov['name'],
-                                      'age_id': range(len(self.age_list)), 'time_id': range(len(self.time_list)),
+                                      'age_id': [len(self.age_list)//2], 'time_id': [len(self.time_list)//2],
                                       'fun': lambda a, t, name=name: ('value_prior_' + name, 'dage_prior_' + name,
                                                                       'dtime_prior_' + name)})
 
