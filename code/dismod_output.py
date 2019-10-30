@@ -1,12 +1,12 @@
 import numpy as np
 import sys
 import subprocess
-import copy
 import pandas as pd
 from typing import Dict, List, Any, Tuple
 import dismod_at
 import sqlite3
 import shutil
+from sqlalchemy import create_engine
 
 program = '/home/prefix/dismod_at.release/bin/dismod_at'
 
@@ -138,13 +138,20 @@ class DismodOutput:
         connection.close()
         system_command([program, path, 'predict', 'fit_var'])
 
-    def save_GBD_output(self, integrands: List[str], time_list: List[int], sex_ids: List[int], location_name_to_id: Dict[str, int],
+    def save_GBD_output(self, integrands: List[str], model_version_id: int, time_list: List[int], sex_ids: List[int], location_name_to_id: Dict[str, int],
                         path_to_csv: str):
         self.create_GBD_integrand(integrands, time_list, sex_ids, location_name_to_id)
         df = self.get_integrand_values(self.path_to_db[:-3] + '_gbd.db')
         df.rename(columns={'avg_integrand': 'mean'}, inplace=True)
         df['lower'] = df['mean']  # dummy fill-in for now
         df['upper'] = df['mean']
-        gbd_output = df[['location_id', 'age_group_id', 'sex_id', 'year_id', 'measure_id', 'mean', 'lower', 'upper']]
+        df['model_version_id'] = model_version_id
+        gbd_output = df[['model_version_id', 'location_id', 'age_group_id', 'sex_id', 'year_id', 'measure_id', 'mean',
+                         'lower', 'upper']]
         gbd_output.reset_index(drop=True, inplace=True)
         gbd_output.to_csv(path_to_csv, index=False)
+
+        # ----- write to database ---------
+        engine = create_engine('mysql+pymysql://jizez:jizez100@epidecomp-perconavm-db-d01.db.ihme.washington.edu/epi')
+        df.to_sql('model_estimate_final', con=engine, if_exists='append', index=False)
+

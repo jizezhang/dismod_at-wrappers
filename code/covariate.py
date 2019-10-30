@@ -12,6 +12,21 @@ age_id_to_range = {age_group_ids[i]: age_intervals[i] for i in range(n_age)}
 
 
 def get_age_year_value(cov, loc_ids, sex_ids):
+    """
+    Build a dictionary where key is (loc_id, age_id) and value is
+    a list of (age_group_id, year_id, mean_value) collected from
+    covariate data. If covariate from a certain location is not
+    available, the list is empty.
+
+    Args:
+        cov (pandas.Dataframe): a dataframe storing covariate info
+        loc_ids (list[int]): location ids
+        sex_ids (list[int]): sex ids
+
+    Returns:
+        dct (dict[tuple(int, int), list[tuple(int, int, float)]])
+
+    """
     dct = {}
     avail_locs = set(cov.location_id.unique())
     for loc_id in loc_ids:
@@ -26,6 +41,20 @@ def get_age_year_value(cov, loc_ids, sex_ids):
 
 
 def intersect(age_start, age_end, year_start, year_end, tuples):
+    """
+    Find covariate entries that intersects with a given measurement
+    entry and compute weights based on length of the overlap.
+
+    Args:
+        age_start (int): start age of the measurement entry
+        age_end (int): end age of the measurement entry
+        year_start (int): start year of the measurement entry
+        year_end (int): end year of the entry
+        tuples (tuple(int, int, float)): tuples of (age_group_id, year_id, cov_value)
+    Returns:
+        common_tuples (list[tuple(int, int, float)]): tuples that intersect with measurement
+        weights (list[float]): weights corresponding to each tuple
+    """
     common_tuples = []
     weights = []
     for tup in tuples:
@@ -34,19 +63,29 @@ def intersect(age_start, age_end, year_start, year_end, tuples):
         if age_group in age_id_to_range:
             year = tup[1]
             interval = age_id_to_range[age_group]
-            if year >= year_start and year <= year_end:
-                if interval[0] < age_end and interval[1] > age_start:
+            if year >= year_start and year <= year_end:  # check if intersects in time
+                if interval[0] < age_end and interval[1] > age_start:  # check if intersect in age
                     common_tuples.append(tup)
                     weights.append(max(min(age_end+1, interval[1]) - max(age_start, interval[0]), 0) /
                                    (interval[1] - interval[0]))
                 elif age_start == age_end and \
-                     (interval[0] == age_start or interval[1] == age_end):
+                        (interval[0] == age_start or interval[1] == age_end):  # case when measurement is on boundary
                     common_tuples.append(tup)
                     weights.append(1./(interval[1] - interval[0]))
     return common_tuples, weights
 
 
 def pop_val_dict(df, locations):
+    """
+    Build a dictionary mapping (location_id, sex_id, age_group_id, year_id) to
+    a population value.
+    Args:
+        df (pandas.Dataframe): population data
+        locations (list[int]): location ids
+
+    Returns:
+        dct (dict[tuple(int, int, int, int), float])
+    """
     dct = {}
     for i, row in df[df['location_id'].isin(locations)].iterrows():
         dct[(row['location_id'], row['sex_id'], row['age_group_id'], row['year_id'])] = row['population']
@@ -54,6 +93,18 @@ def pop_val_dict(df, locations):
 
 
 def interpolate(meas, covs, pop):
+    """
+    Interpolate covariate values for measurements.
+
+    Args:
+        meas (pandas.Dataframe): measurement dataframe
+        covs (pandas.Dataframe): covariate dataframe
+        pop (pandas.Dataframe): population dataframe
+
+    Returns:
+        None. Modify measurement dataframe in-place.
+
+    """
     meas = meas.reset_index(drop=True)
     loc_ids = sorted(meas.location_id.unique())
     sex_ids = [1, 2, 3]
@@ -79,29 +130,21 @@ def interpolate(meas, covs, pop):
         for name in cov_names:
             tuples, weights = intersect(age_start, age_end, year_start, year_end,
                                        cov_age_year_value[name][(loc_id, sex_id)])
-            dct['age_year_'+name] = [(age_id_to_range[tup[0]], tup[1]) for tup in tuples]
-            dct['val_'+name] = [tup[2] for tup in tuples]
+            # store only for debugging purpose
+            # dct['age_year_'+name] = [(age_id_to_range[tup[0]], tup[1]) for tup in tuples]
+            dct['val_'+name] = [tup[2] for tup in tuples]  # list of covariate values
             dct['wts'] = weights
-            dct['pop_'+name] = []
+            dct['pop_'+name] = []  # to store list of population values corresponding to tuples
             val = 0.0
             total_wts = 0.0
             if len(tuples) > 0:
                 for j in range(len(tuples)):
-                    # t1 = time.time()
-                    #                     # pop_value = pop[(pop['location_id'] == loc_id)\
-                    #                     #                & (pop['age_group_id'] == tuples[j][0]) & \
-                    #                     #                (pop['year_id'] == tuples[j][1])][['population', 'sex_id']]
-                    #                     # if sex_id != 3:
-                    #                     #     dct['pop_'+name].append(pop_value[pop_value['sex_id'] == sex_id]['population'].values)
-                    #                     # else:
-                    #                     #     dct['pop_'+name].append(np.sum(pop_value['population'].values))
-                    #                     # print(i, name, j, 'get pop val elapsed', time.time() - t1)
                     if sex_id != 3:
                         dct['pop_'+name].append(pop_dict[(loc_id, sex_id, tuples[j][0], tuples[j][1])])
                     else:
                         dct['pop_'+name].append(pop_dict[(loc_id, 1, tuples[j][0], tuples[j][1])]
                                                 + pop_dict[(loc_id, 2, tuples[j][0], tuples[j][1])])
-                    val += tuples[j][2]*weights[j]*dct['pop_'+name][-1]
+                    val += tuples[j][2]*weights[j]*dct['pop_'+name][-1]  # weigh covariate value by population
                     total_wts += weights[j]*dct['pop_'+name][-1]
                 val /= total_wts
             meas.loc[i, name] = val
