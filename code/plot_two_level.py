@@ -105,7 +105,7 @@ class PlotTwoLevel:
             plt.plot(self.age_list, Z[i, :], '-', label="time " + str(self.time_list[i]))
             plt.xlabel('age')
             plt.ylabel(type+' '+name)
-            plt.title(name+' plot across age')
+            plt.title(location + ": " + name+' plot across age')
             k += 1
             if legend:
                 plt.legend()
@@ -154,7 +154,7 @@ class PlotTwoLevel:
             plt.plot(self.time_list, Z[i, :], '-', label="age " + str(self.age_list[i]))
             plt.xlabel('year')
             plt.ylabel(type+' '+name)
-            plt.title(name+' plot across time')
+            plt.title(location + ": " + name+' plot across time')
             k += 1
             if legend:
                 plt.legend()

@@ -7,6 +7,7 @@ import dismod_at
 import sqlite3
 import shutil
 from sqlalchemy import create_engine
+import pymysql
 
 program = '/home/prefix/dismod_at.release/bin/dismod_at'
 
@@ -152,6 +153,15 @@ class DismodOutput:
         gbd_output.to_csv(path_to_csv, index=False)
 
         # ----- write to database ---------
-        engine = create_engine('mysql+pymysql://jizez:jizez100@epidecomp-perconavm-db-d01.db.ihme.washington.edu/epi')
-        df.to_sql('model_estimate_final', con=engine, if_exists='append', index=False)
-
+        # engine = create_engine('mysql+pymysql://jizez:jizez100@epidecomp-perconavm-db-d01.db.ihme.washington.edu/epi',
+        #                        echo=False, pool_timeout=60)
+        # df.to_sql('model_estimate_final', con=engine, if_exists='append', index=False, chunksize=50, method='multi')
+        connection = pymysql.connect(user='jizez', password='jizez100',
+                                     host='epidecomp-perconavm-db-d01.db.ihme.washington.edu', database='epi')
+        cursor = connection.cursor()
+        cursor.executemany("insert ignore into model_estimate_final " +
+                           "(model_version_id, location_id, age_group_id, sex_id, year_id, measure_id, mean, lower, upper) " +
+                           "values (%s, %s, %s, %s, %s, %s, %s, %s, %s) ",
+                           list(gbd_output.itertuples(index=False, name=None)))
+        connection.commit()
+        connection.close()
