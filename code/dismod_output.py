@@ -19,7 +19,7 @@ n_age = len(age_group_ids)
 age_id_to_range = {age_group_ids[i]: age_intervals[i] for i in range(n_age)}
 
 integrand_to_measure_id = {'prevalence': 5, 'remission': 7, 'mtexcess': 9, 'relrisk': 11, 'mtstandard': 12,
-                           'mtwith': 13, 'mtall': 14, 'mtspecific': 15, 'mtother': 16, 'Sincidence': 41,
+                           'mtwith': 13, 'mtall': 14, 'mtspecific': 15, 'mtother': 16, 'Sincidence': 6,
                            'susceptible': 39, 'withC': 40, 'Tincidence': 42}
 
 def system_command(command, verbose=True):
@@ -93,8 +93,8 @@ class DismodOutput:
         conn.close()
         return df
 
-    def create_GBD_integrand(self, integrands: List[str], time_list: List[int], sex_ids: List[int],
-                             location_name_to_id: Dict[str, int]):
+    def create_GBD_integrand(self, integrands: List[str], covariates: Dict[str, pd.DataFrame], time_list: List[int],
+                             sex_ids: List[int], location_name_to_id: Dict[str, int]):
         path = self.path_to_db[:-3] + '_gbd.db'
         print(path)
         shutil.copyfile(self.path_to_db, path)
@@ -113,6 +113,13 @@ class DismodOutput:
 
         crsr.execute("drop table avgint")
 
+        cov_name_to_id = self.get_covarates_names()
+        cov_ids = []
+        cov_dfs = []
+        for name, df in covariates:
+            cov_ids.append(cov_name_to_id[name])
+            cov_dfs.append(df)
+
         row_list = []
         for integrand_id in range(len(integrands)):
             for age_id in age_group_ids:
@@ -124,23 +131,27 @@ class DismodOutput:
                             if age_lower >= self.age_min and age_upper <= self.age_max and \
                                     self.time_min <= time <= self.time_max:
                                 row = [integrand_id, node_id, None, age_lower, age_upper, time, time]
-                                row.extend([None]*n_covs)
+                                #row.extend([None]*n_covs)
                                 row.extend([location_name_to_id[node_name], age_id, time,
                                             integrand_to_measure_id[integrands[integrand_id]]])
                                 for sex_id in sex_ids:
-                                    row_list.append(row + [sex_id])
+                                    covs = [df[(df['age_group_id'].isin([age_id, 22])) &
+                                               (df['location_id'] == location_name_to_id[node_name]) &
+                                               (df['year_id'] == time) & (df['sex_id'].isin([3, sex_id]))].values
+                                            for df in cov_dfs]
+                                    row_list.append(row + [sex_id] + covs)
 
         dismod_at.create_table(connection, 'avgint', ['integrand_id', 'node_id', 'weight_id', 'age_lower', 'age_upper',
                                                       'time_lower', 'time_upper'] +
-                               ['x_' + str(i) for i in range(n_covs)] +
-                               ['location_id', 'age_group_id', 'year_id', 'measure_id', 'sex_id'],
-                               ['integer', 'integer', 'integer', 'real', 'real', 'real', 'real'] + ['real']*n_covs + \
+                               ['location_id', 'age_group_id', 'year_id', 'measure_id', 'sex_id'] +
+                               ['x_' + i for i in cov_ids],
+                               ['integer', 'integer', 'integer', 'real', 'real', 'real', 'real'] + ['real']*n_covs +
                                ['integer']*5, row_list)
         connection.close()
         system_command([program, path, 'predict', 'fit_var'])
 
-    def save_GBD_output(self, integrands: List[str], model_version_id: int, time_list: List[int], sex_ids: List[int], location_name_to_id: Dict[str, int],
-                        path_to_csv: str):
+    def save_GBD_output(self, integrands: List[str], model_version_id: int, time_list: List[int], sex_ids: List[int],
+                        location_name_to_id: Dict[str, int], path_to_csv: str):
         self.create_GBD_integrand(integrands, time_list, sex_ids, location_name_to_id)
         df = self.get_integrand_values(self.path_to_db[:-3] + '_gbd.db')
         df.rename(columns={'avg_integrand': 'mean'}, inplace=True)
