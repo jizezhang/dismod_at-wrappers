@@ -134,6 +134,7 @@ class DismodOutput:
                                 for sex_id in sex_ids:
                                     covs = [None]*n_covs
                                     if covariates is not None:
+                                        include = True
                                         for name, df in covariates.items():
                                             i = int(cov_name_to_id[name].split("_")[1])
                                             v = df[
@@ -142,7 +143,13 @@ class DismodOutput:
                                                 (df['year_id'] == time) & (df['sex_id'].isin([3, sex_id]))]['mean_value'].values
                                             if v.shape[0] > 0:
                                                 covs[i] = v[0]
-                                    row_list.append(row + [sex_id] + covs)
+                                            else:
+                                                include = False  # this age_group_id is not used in this covariate
+                                                break
+                                        if include:
+                                            row_list.append(row + [sex_id] + covs)
+                                    else:
+                                        row_list.append(row + [sex_id] + covs)
         dismod_at.create_table(connection, 'avgint', ['integrand_id', 'node_id', 'weight_id', 'age_lower', 'age_upper',
                                                       'time_lower', 'time_upper'] +
                                ['location_id', 'age_group_id', 'year_id', 'measure_id', 'sex_id'] +
@@ -164,9 +171,10 @@ class DismodOutput:
         gbd_output = df[['model_version_id', 'location_id', 'age_group_id', 'sex_id', 'year_id', 'measure_id', 'mean',
                          'lower', 'upper']]
         gbd_output.reset_index(drop=True, inplace=True)
-        gbd_output.to_csv(path_to_csv, index=False)
+        #gbd_output.to_csv(path_to_csv, index=False)
         #gbd_output.head()
         print(df.shape, gbd_output.shape)
+        df.to_csv(path_to_csv, index=False)
 
         # ----- write to database ---------
         # engine = create_engine('mysql+pymysql://jizez:jizez100@epidecomp-perconavm-db-d01.db.ihme.washington.edu/epi',
