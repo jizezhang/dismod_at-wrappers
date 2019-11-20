@@ -38,7 +38,7 @@ RUN rm -rf dismod_at
 RUN git clone https://github.com/bradbell/dismod_at.git
 WORKDIR /home/dismod_at
 RUN git pull
-RUN git checkout 74f5aed897f534376c8ccf08042276252beb5de5
+RUN git checkout 22689f0d3c94bf789823a63a4e8a560291443f2f
 
 RUN mkdir /home/prefix
 RUN sed -i bin/run_cmake.sh -e 's|$HOME/|/home/|g'

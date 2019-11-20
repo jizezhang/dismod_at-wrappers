@@ -6,7 +6,7 @@ from typing import Dict, List, Any, Tuple
 import dismod_at
 import sqlite3
 import shutil
-from sqlalchemy import create_engine
+#from sqlalchemy import create_engine
 import pymysql
 
 program = '/home/prefix/dismod_at.release/bin/dismod_at'
@@ -93,8 +93,9 @@ class DismodOutput:
         conn.close()
         return df
 
-    def create_GBD_integrand(self, integrands: List[str], covariates: Dict[str, pd.DataFrame], time_list: List[int],
-                             sex_ids: List[int], location_name_to_id: Dict[str, int]):
+    def create_GBD_integrand(self, integrands: List[str], time_list: List[int],
+                             sex_ids: List[int], location_name_to_id: Dict[str, int],
+                             covariates: Dict[str, pd.DataFrame] = None):
         path = self.path_to_db[:-3] + '_gbd.db'
         print(path)
         shutil.copyfile(self.path_to_db, path)
@@ -106,7 +107,7 @@ class DismodOutput:
         row_list = []
         for name in integrands:
             row_list.append([0.0, name])
-        print(row_list)
+        #print(row_list)
         dismod_at.create_table(connection, 'integrand',
                                ['minimum_meas_cv', 'integrand_name'],
                                ['real', 'text'], row_list)
@@ -114,11 +115,7 @@ class DismodOutput:
         crsr.execute("drop table avgint")
 
         cov_name_to_id = self.get_covarates_names()
-        cov_ids = []
-        cov_dfs = []
-        for name, df in covariates:
-            cov_ids.append(cov_name_to_id[name])
-            cov_dfs.append(df)
+        #print(cov_name_to_id, n_covs)
 
         row_list = []
         for integrand_id in range(len(integrands)):
@@ -135,24 +132,30 @@ class DismodOutput:
                                 row.extend([location_name_to_id[node_name], age_id, time,
                                             integrand_to_measure_id[integrands[integrand_id]]])
                                 for sex_id in sex_ids:
-                                    covs = [df[(df['age_group_id'].isin([age_id, 22])) &
-                                               (df['location_id'] == location_name_to_id[node_name]) &
-                                               (df['year_id'] == time) & (df['sex_id'].isin([3, sex_id]))].values
-                                            for df in cov_dfs]
+                                    covs = [None]*n_covs
+                                    if covariates is not None:
+                                        for name, df in covariates.items():
+                                            i = int(cov_name_to_id[name].split("_")[1])
+                                            v = df[
+                                                (df['age_group_id'].isin([age_id, 22])) &
+                                                (df['location_id'] == location_name_to_id[node_name]) &
+                                                (df['year_id'] == time) & (df['sex_id'].isin([3, sex_id]))]['mean_value'].values
+                                            if v.shape[0] > 0:
+                                                covs[i] = v[0]
                                     row_list.append(row + [sex_id] + covs)
-
         dismod_at.create_table(connection, 'avgint', ['integrand_id', 'node_id', 'weight_id', 'age_lower', 'age_upper',
                                                       'time_lower', 'time_upper'] +
                                ['location_id', 'age_group_id', 'year_id', 'measure_id', 'sex_id'] +
-                               ['x_' + i for i in cov_ids],
-                               ['integer', 'integer', 'integer', 'real', 'real', 'real', 'real'] + ['real']*n_covs +
-                               ['integer']*5, row_list)
+                               ['x_' + str(i) for i in range(n_covs)],
+                               ['integer', 'integer', 'integer', 'real', 'real', 'real', 'real'] +
+                               ['integer']*5 + ['real']*n_covs, row_list)
         connection.close()
         system_command([program, path, 'predict', 'fit_var'])
 
     def save_GBD_output(self, integrands: List[str], model_version_id: int, time_list: List[int], sex_ids: List[int],
-                        location_name_to_id: Dict[str, int], path_to_csv: str):
-        self.create_GBD_integrand(integrands, time_list, sex_ids, location_name_to_id)
+                        location_name_to_id: Dict[str, int], path_to_csv: str,
+                        covariates: Dict[str, pd.DataFrame] = None):
+        self.create_GBD_integrand(integrands, time_list, sex_ids, location_name_to_id, covariates=covariates)
         df = self.get_integrand_values(self.path_to_db[:-3] + '_gbd.db')
         df.rename(columns={'avg_integrand': 'mean'}, inplace=True)
         df['lower'] = df['mean']  # dummy fill-in for now
@@ -162,6 +165,8 @@ class DismodOutput:
                          'lower', 'upper']]
         gbd_output.reset_index(drop=True, inplace=True)
         gbd_output.to_csv(path_to_csv, index=False)
+        #gbd_output.head()
+        print(df.shape, gbd_output.shape)
 
         # ----- write to database ---------
         # engine = create_engine('mysql+pymysql://jizez:jizez100@epidecomp-perconavm-db-d01.db.ihme.washington.edu/epi',

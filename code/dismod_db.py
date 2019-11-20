@@ -9,7 +9,7 @@ import os
 
 program = '/home/prefix/dismod_at.release/bin/dismod_at'
 
-AGE_LIST = [7./365, 7./365, 28./365] + list(range(1, 11)) + list(range(10, 100, 5))
+AGE_LIST = [0, 7./365, 28./365] + list(range(1, 10)) + list(range(10, 101, 5))
 
 
 class DismodDB:
@@ -93,10 +93,10 @@ class DismodDB:
 
         age_list = []
         for i in range(len(AGE_LIST)):
-            if min_age <= age[i] <= min_age or (age[i] < min_age and age[i+1] >= min_age):
-                age_list.append(age)
-            elif age[i-1] <= max_age and age[i] > max_age:
-                age_list.append(age)
+            if min_age <= AGE_LIST[i] <= max_age or (AGE_LIST[i] < min_age <= AGE_LIST[i + 1]):
+                age_list.append(AGE_LIST[i])
+            elif AGE_LIST[i - 1] <= max_age < AGE_LIST[i]:
+                age_list.append(AGE_LIST[i])
                 break
         #age_list = [int(round(x)) for x in np.linspace(min_age, max_age,
         #                                               round((max_age - min_age) / 5) + 1)]
