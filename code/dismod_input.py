@@ -18,4 +18,5 @@ def get_input_from_db(model_version_id=None, settings_json=None):
     inputs.configure_inputs_for_dismod(sts)
 
     df = inputs.dismod_data
+    df.rename(columns={"time_lower": "age_start", "time_upper": "age_end"})
     return df
