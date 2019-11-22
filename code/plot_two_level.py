@@ -8,6 +8,9 @@ import os
 
 program = '/home/prefix/dismod_at.release/bin/dismod_at'
 
+def sigmoid(x):
+    return 1./(1. + np.exp(-x))
+
 
 class PlotTwoLevel:
 
@@ -115,9 +118,9 @@ class PlotTwoLevel:
                     if np.abs(row['residual']) >= 3.:
                         color = 'rosybrown'
                     plt.plot([row['age_lo'], row['age_up']],
-                             [row['meas_value'], row['meas_value']], '-', color=color, linewidth=.5)
+                             [row['meas_value'], row['meas_value']], '-', color=color, linewidth=sigmoid(-row['meas_std']))
                     if row['age_lo'] == row['age_up']:
-                        plt.plot(row['age_lo'], row['meas_value'], '.', color=color, markersize=5)
+                        plt.plot(row['age_lo'], row['meas_value'], '.', color=color, markersize=5*sigmoid(-row['meas_std']))
 
     def plot_change_over_time(self, type: str, name: str, measurement: str, location: str,
                              age_idx: List[int] = None, legend: bool = True, ylim: List[float] = None,
@@ -164,6 +167,6 @@ class PlotTwoLevel:
                     if row['residual'] >= 3.:
                         color = 'rosybrown'
                     plt.plot([row['time_lo'], row['time_up']],
-                             [row['meas_value'], row['meas_value']], '-', color=color, linewidth=.5)
+                             [row['meas_value'], row['meas_value']], '-', color=color, linewidth=sigmoid(-row['meas_std']))
                     if row['time_lo'] == row['time_up']:
-                        plt.plot(row['time_lo'], row['meas_value'], '.', color=color, markersize=5)
+                        plt.plot(row['time_lo'], row['meas_value'], '.', color=color, markersize=5*sigmoid(-row['meas_std']))

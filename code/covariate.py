@@ -110,9 +110,11 @@ def interpolate(meas, covs, pop):
     sex_ids = [1, 2, 3]
     cov_age_year_value = {}
     cov_names = covs.keys()
+    t0 = time.time()
     for name, cov in covs.items():
         cov_age_year_value[name] = get_age_year_value(cov, loc_ids, sex_ids)
         meas[name] = 0.0
+    print("time elapsed get_age_year_value", time.time() - t0)
 
     sex_to_id = {'Male': 1, 'Female': 2, 'Both': 3}
     pop_dict = pop_val_dict(pop, loc_ids)

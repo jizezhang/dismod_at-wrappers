@@ -30,6 +30,7 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y \
 
 # install jupyter notebook
 RUN pip3 install jupyter
+RUN python3 -m pip install PyMySQL
 
 
 # clone the refered version of dismod_at repository
