@@ -32,9 +32,15 @@ def get_age_year_value(cov, loc_ids, sex_ids):
     for loc_id in loc_ids:
         for sex_id in sex_ids:
             if loc_id in avail_locs:
-                cov_sub = cov[(cov['location_id'] == loc_id) & (cov['sex_id'].isin([3, sex_id]))]
-                cov_sub = cov_sub.sort_values(['age_group_id', 'year_id'])
-                dct[(loc_id, sex_id)] = list(cov_sub[['age_group_id', 'year_id', 'mean_value']].values)
+                if sex_id in set(cov['sex_id'].values):
+                    cov_sub = cov[(cov['location_id'] == loc_id) & (cov['sex_id'] == sex_id)]
+                    cov_sub = cov_sub.sort_values(['age_group_id', 'year_id'])
+                    dct[(loc_id, sex_id)] = list(cov_sub[['age_group_id', 'year_id', 'mean_value']].values)
+                else:
+                    # either sex_id = 3, in which case aggregate sex_id = 1, 2, or sex_id = 1 or 2, and all cov has sex_id = 2
+                    cov_sub = cov[cov['location_id'] == loc_id]
+                    cov_sub = cov_sub.sort_values(['age_group_id', 'year_id'])
+                    dct[(loc_id, sex_id)] = list(cov_sub[['age_group_id', 'year_id', 'mean_value']].values)
             else:
                 dct[(loc_id, sex_id)] = []
     return dct
