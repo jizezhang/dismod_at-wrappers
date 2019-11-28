@@ -28,21 +28,21 @@ def get_age_year_value(cov, loc_ids, sex_ids):
 
     """
     dct = {}
-    avail_locs = set(cov.location_id.unique())
+    avail_locs = set(cov.location_id.unique()) & set(loc_ids)
+    if len(avail_locs) == 0:
+        print("covariate file does not contain locations", loc_ids, " requested")
+    cov = cov[(cov['location_id'].isin(list(avail_locs))) & (cov['age_group_id'].isin(age_group_ids))]
     for loc_id in loc_ids:
         for sex_id in sex_ids:
-            if loc_id in avail_locs:
-                if sex_id in set(cov['sex_id'].values):
-                    cov_sub = cov[(cov['location_id'] == loc_id) & (cov['sex_id'] == sex_id)]
-                    cov_sub = cov_sub.sort_values(['age_group_id', 'year_id'])
-                    dct[(loc_id, sex_id)] = list(cov_sub[['age_group_id', 'year_id', 'mean_value']].values)
-                else:
-                    # either sex_id = 3, in which case aggregate sex_id = 1, 2, or sex_id = 1 or 2, and all cov has sex_id = 3
-                    cov_sub = cov[cov['location_id'] == loc_id]
-                    cov_sub = cov_sub.sort_values(['age_group_id', 'year_id'])
-                    dct[(loc_id, sex_id)] = list(cov_sub[['age_group_id', 'year_id', 'mean_value']].values)
+            if sex_id in set(cov['sex_id'].values):
+                cov_sub = cov[(cov['location_id'] == loc_id) & (cov['sex_id'] == sex_id)]
+                cov_sub = cov_sub.sort_values(['age_group_id', 'year_id'])
+                dct[(loc_id, sex_id)] = list(cov_sub[['age_group_id', 'year_id', 'mean_value']].values)
             else:
-                dct[(loc_id, sex_id)] = []
+                # either sex_id = 3, in which case aggregate sex_id = 1, 2, or sex_id = 1 or 2, and all cov has sex_id = 3
+                cov_sub = cov[cov['location_id'] == loc_id]
+                cov_sub = cov_sub.sort_values(['age_group_id', 'year_id'])
+                dct[(loc_id, sex_id)] = list(cov_sub[['age_group_id', 'year_id', 'mean_value']].values)
     return dct
 
 
@@ -66,18 +66,18 @@ def intersect(age_start, age_end, year_start, year_end, tuples):
     for tup in tuples:
         tup = (int(tup[0]), int(tup[1]), tup[2])
         age_group = tup[0]
-        if age_group in age_id_to_range:
-            year = tup[1]
-            interval = age_id_to_range[age_group]
-            if year >= year_start and year <= year_end:  # check if intersects in time
-                if interval[0] < age_end and interval[1] > age_start:  # check if intersect in age
-                    common_tuples.append(tup)
-                    weights.append(max(min(age_end+1, interval[1]) - max(age_start, interval[0]), 0) /
-                                   (interval[1] - interval[0]))
-                elif age_start == age_end and \
-                        (interval[0] == age_start or interval[1] == age_end):  # case when measurement is on boundary
-                    common_tuples.append(tup)
-                    weights.append(1./(interval[1] - interval[0]))
+        year = tup[1]
+        interval = age_id_to_range[age_group]
+        if year_start <= year <= year_end:  # check if intersects in time
+            if interval[0] < age_end and interval[1] > age_start:  # check if intersect in age
+                common_tuples.append(tup)
+                #  pad age_end from data with +1 to account for demographic interval
+                weights.append(max(min(age_end+1, interval[1]) - max(age_start, interval[0]), 0) /
+                               (interval[1] - interval[0]))
+            elif age_start == age_end and \
+                    (interval[0] == age_start or interval[1] == age_end):  # case when measurement is on boundary
+                common_tuples.append(tup)
+                weights.append(1./(interval[1] - interval[0]))
     return common_tuples, weights
 
 
@@ -142,20 +142,27 @@ def interpolate(meas, covs, pop):
                                        cov_age_year_value[name][(loc_id, sex_id)])
             # store only for debugging purpose
             # dct['age_year_'+name] = [(age_id_to_range[tup[0]], tup[1]) for tup in tuples]
-            dct['val_'+name] = [tup[2] for tup in tuples]  # list of covariate values
-            dct['wts'] = weights
-            dct['pop_'+name] = []  # to store list of population values corresponding to tuples
+            # dct['val_'+name] = [tup[2] for tup in tuples]  # list of covariate values
+            # dct['wts'] = weights
+            # dct['pop_'+name] = []  # to store list of population values corresponding to tuples
             val = 0.0
             total_wts = 0.0
             if len(tuples) > 0:
                 for j in range(len(tuples)):
                     if sex_id != 3:
-                        dct['pop_'+name].append(pop_dict[(loc_id, sex_id, tuples[j][0], tuples[j][1])])
+                        pop_val = pop_dict[(loc_id, sex_id, tuples[j][0], tuples[j][1])]
+                        # store only for debugging purpose
+                        # dct['pop_'+name].append(pop_dict[(loc_id, sex_id, tuples[j][0], tuples[j][1])])
                     else:
-                        dct['pop_'+name].append(pop_dict[(loc_id, 1, tuples[j][0], tuples[j][1])]
-                                                + pop_dict[(loc_id, 2, tuples[j][0], tuples[j][1])])
-                    val += tuples[j][2]*weights[j]*dct['pop_'+name][-1]  # weigh covariate value by population
-                    total_wts += weights[j]*dct['pop_'+name][-1]
+                        pop_val = pop_dict[(loc_id, 1, tuples[j][0], tuples[j][1])] \
+                                                + pop_dict[(loc_id, 2, tuples[j][0], tuples[j][1])]
+                        # store only for debugging purpose
+                        # dct['pop_'+name].append(pop_dict[(loc_id, 1, tuples[j][0], tuples[j][1])]
+                        #                        + pop_dict[(loc_id, 2, tuples[j][0], tuples[j][1])])
+                    val += tuples[j][2]*weights[j]*pop_val
+                    total_wts += weights[j]*pop_val
+                    # val += tuples[j][2]*weights[j]*dct['pop_'+name][-1]  # weigh covariate value by population
+                    # total_wts += weights[j]*dct['pop_'+name][-1]
                 val /= total_wts
             meas.loc[i, name] = val
     return meas
