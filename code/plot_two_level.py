@@ -59,8 +59,8 @@ class PlotTwoLevel:
     #     conn.close()
     #     return df
 
-    def plot_residuals(self, location: str, bins: int = None):
-        residuals = self.data_values['residual'].values
+    def plot_residuals(self, location: str, measurement: str, bins: int = None):
+        residuals = self.data_values[self.data_values['integrand'] == measurement]['residual'].values
         if location != 'all':
             residuals = self.data_values[self.data_values['node'] == location]['residual'].values
         if bins:
@@ -97,37 +97,42 @@ class PlotTwoLevel:
         for i in time_idx:
             if k % curve_per_plot == 0:
                 fig, axes = plt.subplots(1, len(locations), sharey=True, figsize=(len(locations)*5, 3))
-                for loc_i in range(len(locations)):
+            k += 1
+            for loc_i in range(len(locations)):
+                ax = None
+                if len(locations) == 1:
+                    ax = axes
+                else:
                     ax = axes[loc_i]
-                    location = locations[loc_i]
-                    if ylim is not None:
-                        ax.set_ylim(ylim)
-                    data = self.data_values
-                    if location != 'all':
-                        data = self.data_values[self.data_values['node'] == location]
-                    data_sub = data[(data['time_lo'] <= self.time_list[i]) &
-                                    (data['time_up'] >= self.time_list[i]) &
-                                    (data['integrand'] == measurement)]
-                    Z = values[loc_i]
-                    #print(self.age_list, Z.shape)
-                    ax.plot(self.age_list, Z[i, :], '-', label="time " + str(self.time_list[i]))
-                    ax.set_xlabel('age')
-                    ax.set_ylabel(type+' '+name)
-                    ax.set_title(location + ": " + name+' plot across age')
-                    k += 1
-                    if legend:
-                        ax.legend()
-                    if plot_data:
-                        for j, row in data_sub.iterrows():
-                            color = 'tab:grey'
-                            if np.abs(row['residual']) >= 3.:
-                                color = 'rosybrown'
-                            ax.plot([row['age_lo'], row['age_up']],
-                                    [row['meas_value'], row['meas_value']], '-', color=color,
-                                    linewidth=sigmoid(-row['meas_std']))
-                            if row['age_lo'] == row['age_up']:
-                                ax.plot(row['age_lo'], row['meas_value'], '.', color=color,
-                                        markersize=5*sigmoid(-row['meas_std']))
+                location = locations[loc_i]
+                if ylim is not None:
+                    ax.set_ylim(ylim)
+                data = self.data_values
+                if location != 'all':
+                    data = self.data_values[self.data_values['node'] == location]
+                data_sub = data[(data['time_lo'] <= self.time_list[i]) &
+                                (data['time_up'] >= self.time_list[i]) &
+                                (data['integrand'] == measurement)]
+                Z = values[loc_i]
+                #print(self.age_list, Z.shape)
+                ax.plot(self.age_list, Z[i, :], '-', label="time " + str(self.time_list[i]))
+                ax.set_xlabel('age')
+                ax.set_ylabel(type+' '+name)
+                ax.set_title(location + ": " + name+' plot across age')
+                if legend:
+                    ax.legend()
+                if plot_data:
+                    for j, row in data_sub.iterrows():
+                        color = 'tab:grey'
+                        if np.abs(row['residual']) >= 3.:
+                            color = 'rosybrown'
+                        ax.plot([row['age_lo'], row['age_up']],
+                                [row['meas_value'], row['meas_value']], '-', color=color,
+                                linewidth=sigmoid(-row['meas_std']))
+                        if row['age_lo'] == row['age_up']:
+                            ax.plot(row['age_lo'], row['meas_value'], '.', color=color,
+                                    markersize=5*sigmoid(-row['meas_std']))
+
 
     def plot_change_over_time(self, type: str, name: str, measurement: str, locations: str,
                              age_idx: List[int] = None, legend: bool = True, ylim: List[float] = None,
@@ -155,33 +160,37 @@ class PlotTwoLevel:
         for i in age_idx:
             if k % curve_per_plot == 0:
                 fig, axes = plt.subplots(1, len(locations), sharey=True, figsize=(len(locations) * 5, 3))
-                for loc_i in range(len(locations)):
+            k += 1
+            for loc_i in range(len(locations)):
+                if len(locations) == 1:
+                    ax = axes
+                else:
                     ax = axes[loc_i]
-                    location = locations[loc_i]
-                    if ylim is not None:
-                        ax.set_ylim(ylim)
-                    data = self.data_values
-                    if location != 'all':
-                        data = self.data_values[self.data_values['node'] == location]
-                    data_sub = data[(data['age_lo'] <= self.age_list[i]) &
-                                    (data['age_up'] >= self.age_list[i]) &
-                                    (data['integrand'] == measurement)]
-                    Z = values[loc_i]
-                    ax.plot(self.time_list, Z[i, :], '-', label="age " + str(self.age_list[i]))
-                    ax.set_xlabel('year')
-                    ax.set_ylabel(type+' '+name)
-                    ax.set_title(location + ": " + name+' plot across time')
-                    k += 1
-                    if legend:
-                        ax.legend()
-                    if plot_data:
-                        for j, row in data_sub.iterrows():
-                            color = 'tab:grey'
-                            if row['residual'] >= 3.:
-                                color = 'rosybrown'
-                            ax.plot([row['time_lo'], row['time_up']],
-                                    [row['meas_value'], row['meas_value']], '-', color=color,
-                                    linewidth=sigmoid(-row['meas_std']))
-                            if row['time_lo'] == row['time_up']:
-                                ax.plot(row['time_lo'], row['meas_value'], '.', color=color,
-                                        markersize=5*sigmoid(-row['meas_std']))
+                location = locations[loc_i]
+                if ylim is not None:
+                    ax.set_ylim(ylim)
+                data = self.data_values
+                if location != 'all':
+                    data = self.data_values[self.data_values['node'] == location]
+                data_sub = data[(data['age_lo'] <= self.age_list[i]) &
+                                (data['age_up'] >= self.age_list[i]) &
+                                (data['integrand'] == measurement)]
+                Z = values[loc_i]
+                ax.plot(self.time_list, Z[i, :], '-', label="age " + str(self.age_list[i]))
+                ax.set_xlabel('year')
+                ax.set_ylabel(type+' '+name)
+                ax.set_title(location + ": " + name+' plot across time')
+                k += 1
+                if legend:
+                    ax.legend()
+                if plot_data:
+                    for j, row in data_sub.iterrows():
+                        color = 'tab:grey'
+                        if row['residual'] >= 3.:
+                            color = 'rosybrown'
+                        ax.plot([row['time_lo'], row['time_up']],
+                                [row['meas_value'], row['meas_value']], '-', color=color,
+                                linewidth=sigmoid(-row['meas_std']))
+                        if row['time_lo'] == row['time_up']:
+                            ax.plot(row['time_lo'], row['meas_value'], '.', color=color,
+                                    markersize=5*sigmoid(-row['meas_std']))
