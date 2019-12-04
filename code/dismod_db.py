@@ -9,7 +9,7 @@ import os
 
 program = '/home/prefix/dismod_at.release/bin/dismod_at'
 
-AGE_LIST = [0, 7./365, 28./365] + list(range(1, 10)) + list(range(10, 101, 5))
+AGE_LIST = list(range(0, 10, 2)) + list(range(10, 130, 5))
 
 
 class DismodDB:
@@ -67,7 +67,7 @@ class DismodDB:
         self.create_tables()
 
     def check(self):
-        assert all([x in self.meas_noise_density for x in self.integrand])
+        #assert all([x in self.meas_noise_density for x in self.integrand])
         assert self.m == len(self.cov_priors)
         assert len(self.rates) == len(self.rate_parent_priors)
         assert (len(self.rates) == len(self.rate_child_priors) or len(self.rate_child_priors) == 1)
@@ -80,6 +80,7 @@ class DismodDB:
         self.create_prior_table()
         self.create_option_table()
         self.create_avgint_table()  # will add mulcov_id to self.integrand
+        #self.avgint_table = []
         self.create_default_tables()
 
     def create_age_list(self):
@@ -344,6 +345,11 @@ class DismodDB:
             self.option_table.append({'name': 'zero_sum_random', 'value': ' '.join(self.rates)})
             n = len(self.option_name_id)
             self.option_name_id['zero_sum_random'] = n
+
+    def remove_zero_sum_constraint(self):
+        if 'zero_sum_random' in self.option_name_id:
+            self.option_table[self.option_name_id['zero_sum_random']]['value'] = ''
+
 
     def set_meas_density(self, density: str):
         for i in range(len(self.data_table)):

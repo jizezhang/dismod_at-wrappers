@@ -71,102 +71,117 @@ class PlotTwoLevel:
         plt.xlabel('residual')
         plt.title('histogram for residuals, ' + location)
 
-    def plot_change_over_age(self, type: str, name: str, measurement: str, location: str,
+    def plot_change_over_age(self, type: str, name: str, measurement: str, locations: str,
                              time_idx: List[int] = None, legend: bool = True, ylim: List[float] = None,
                              curve_per_plot: int = 5, plot_data: bool = True):
+        values = []
+        for location in locations:
+            var = []
+            if type == 'rate':
+                var = self.integrand_values[(self.integrand_values['integrand_name'] == self.rate_to_integrand[name]) &
+                                            (self.integrand_values['node_name'] == location)]
+            #elif type == 'covariate':
+            #    var = self.integrand_values[(self.integrand_values['integrand_name'] == self.cov_name_to_id[name]) &
+            #                                (self.integrand_values['node_name'] == location)]
 
-        data = self.data_values
-        if location != 'all':
-            data = self.data_values[self.data_values['node'] == location]
+            ntimes = len(self.time_list)
+            var.sort_values(by=['age_lower'])
+            #Y = var['age_lower'].values.reshape((ntimes, -1), order='F')
+            Z = var['avg_integrand'].values.squeeze().reshape((ntimes, -1), order='F')
+            values.append(Z)
 
-        var = []
-        if type == 'rate':
-            var = self.integrand_values[(self.integrand_values['integrand_name'] == self.rate_to_integrand[name]) &
-                                        (self.integrand_values['node_name'] == location)]
-        #elif type == 'covariate':
-        #    var = self.integrand_values[(self.integrand_values['integrand_name'] == self.cov_name_to_id[name]) &
-        #                                (self.integrand_values['node_name'] == location)]
-
-        ntimes = len(self.time_list)
-        var.sort_values(by=['age_lower'])
-        #Y = var['age_lower'].values.reshape((ntimes, -1), order='F')
-        Z = var['avg_integrand'].values.squeeze().reshape((ntimes, -1), order='F')
         if time_idx is None:
             time_idx = range(ntimes)
 
         k = 0
         for i in time_idx:
-            data_sub = data[(data['time_lo'] <= self.time_list[i]) & \
-                            (data['time_up'] >= self.time_list[i]) & \
-                            (data['integrand'] == measurement)]
             if k % curve_per_plot == 0:
-                plt.figure()
-                plt.title(name+' plot across age')
-                if ylim is not None:
-                    plt.ylim(ylim)
-            #print(self.age_list, Z.shape)
-            plt.plot(self.age_list, Z[i, :], '-', label="time " + str(self.time_list[i]))
-            plt.xlabel('age')
-            plt.ylabel(type+' '+name)
-            plt.title(location + ": " + name+' plot across age')
-            k += 1
-            if legend:
-                plt.legend()
-            if plot_data:
-                for j, row in data_sub.iterrows():
-                    color = 'tab:grey'
-                    if np.abs(row['residual']) >= 3.:
-                        color = 'rosybrown'
-                    plt.plot([row['age_lo'], row['age_up']],
-                             [row['meas_value'], row['meas_value']], '-', color=color, linewidth=sigmoid(-row['meas_std']))
-                    if row['age_lo'] == row['age_up']:
-                        plt.plot(row['age_lo'], row['meas_value'], '.', color=color, markersize=5*sigmoid(-row['meas_std']))
+                fig, axes = plt.subplots(1, len(locations), sharey=True, figsize=(len(locations)*5, 3))
+                for loc_i in range(len(locations)):
+                    ax = axes[loc_i]
+                    location = locations[loc_i]
+                    if ylim is not None:
+                        ax.set_ylim(ylim)
+                    data = self.data_values
+                    if location != 'all':
+                        data = self.data_values[self.data_values['node'] == location]
+                    data_sub = data[(data['time_lo'] <= self.time_list[i]) &
+                                    (data['time_up'] >= self.time_list[i]) &
+                                    (data['integrand'] == measurement)]
+                    Z = values[loc_i]
+                    #print(self.age_list, Z.shape)
+                    ax.plot(self.age_list, Z[i, :], '-', label="time " + str(self.time_list[i]))
+                    ax.set_xlabel('age')
+                    ax.set_ylabel(type+' '+name)
+                    ax.set_title(location + ": " + name+' plot across age')
+                    k += 1
+                    if legend:
+                        ax.legend()
+                    if plot_data:
+                        for j, row in data_sub.iterrows():
+                            color = 'tab:grey'
+                            if np.abs(row['residual']) >= 3.:
+                                color = 'rosybrown'
+                            ax.plot([row['age_lo'], row['age_up']],
+                                    [row['meas_value'], row['meas_value']], '-', color=color,
+                                    linewidth=sigmoid(-row['meas_std']))
+                            if row['age_lo'] == row['age_up']:
+                                ax.plot(row['age_lo'], row['meas_value'], '.', color=color,
+                                        markersize=5*sigmoid(-row['meas_std']))
 
-    def plot_change_over_time(self, type: str, name: str, measurement: str, location: str,
+    def plot_change_over_time(self, type: str, name: str, measurement: str, locations: str,
                              age_idx: List[int] = None, legend: bool = True, ylim: List[float] = None,
                              curve_per_plot: int = 5, plot_data: bool = True):
 
-        data = self.data_values
-        if location != 'all':
-            data = self.data_values[self.data_values['node'] == location]
+        values = []
+        for location in locations:
+            var = []
+            if type == 'rate':
+                var = self.integrand_values[(self.integrand_values['integrand_name'] == self.rate_to_integrand[name]) &
+                                            (self.integrand_values['node_name'] == location)]
+            #elif type == 'covariate':
+            #    var = self.integrand_values[(self.integrand_values['integrand_name'] == self.cov_name_to_id[name]) &
+            #                                (self.integrand_values['node_name'] == location)]
 
-        var = []
-        if type == 'rate':
-            var = self.integrand_values[(self.integrand_values['integrand_name'] == self.rate_to_integrand[name]) &
-                                        (self.integrand_values['node_name'] == location)]
-        #elif type == 'covariate':
-        #    var = self.integrand_values[(self.integrand_values['integrand_name'] == self.cov_name_to_id[name]) &
-        #                                (self.integrand_values['node_name'] == location)]
+            nages = len(self.age_list)
+            var.sort_values(by=['age_lower'])
+            Z = var['avg_integrand'].values.squeeze().reshape((nages, -1))
+            values.append(Z)
 
-        nages = len(self.age_list)
-        var.sort_values(by=['age_lower'])
-        Z = var['avg_integrand'].values.squeeze().reshape((nages, -1))
         if age_idx is None:
             age_idx = range(nages)
 
         k = 0
         for i in age_idx:
-            data_sub = data[(data['age_lo'] <= self.age_list[i]) & \
-                            (data['age_up'] >= self.age_list[i]) & \
-                            (data['integrand'] == measurement)]
             if k % curve_per_plot == 0:
-                plt.figure()
-                plt.title(name+' plot across age')
-                if ylim is not None:
-                    plt.ylim(ylim)
-            plt.plot(self.time_list, Z[i, :], '-', label="age " + str(self.age_list[i]))
-            plt.xlabel('year')
-            plt.ylabel(type+' '+name)
-            plt.title(location + ": " + name+' plot across time')
-            k += 1
-            if legend:
-                plt.legend()
-            if plot_data:
-                for j, row in data_sub.iterrows():
-                    color = 'tab:grey'
-                    if row['residual'] >= 3.:
-                        color = 'rosybrown'
-                    plt.plot([row['time_lo'], row['time_up']],
-                             [row['meas_value'], row['meas_value']], '-', color=color, linewidth=sigmoid(-row['meas_std']))
-                    if row['time_lo'] == row['time_up']:
-                        plt.plot(row['time_lo'], row['meas_value'], '.', color=color, markersize=5*sigmoid(-row['meas_std']))
+                fig, axes = plt.subplots(1, len(locations), sharey=True, figsize=(len(locations) * 5, 3))
+                for loc_i in range(len(locations)):
+                    ax = axes[loc_i]
+                    location = locations[loc_i]
+                    if ylim is not None:
+                        ax.set_ylim(ylim)
+                    data = self.data_values
+                    if location != 'all':
+                        data = self.data_values[self.data_values['node'] == location]
+                    data_sub = data[(data['age_lo'] <= self.age_list[i]) &
+                                    (data['age_up'] >= self.age_list[i]) &
+                                    (data['integrand'] == measurement)]
+                    Z = values[loc_i]
+                    ax.plot(self.time_list, Z[i, :], '-', label="age " + str(self.age_list[i]))
+                    ax.set_xlabel('year')
+                    ax.set_ylabel(type+' '+name)
+                    ax.set_title(location + ": " + name+' plot across time')
+                    k += 1
+                    if legend:
+                        ax.legend()
+                    if plot_data:
+                        for j, row in data_sub.iterrows():
+                            color = 'tab:grey'
+                            if row['residual'] >= 3.:
+                                color = 'rosybrown'
+                            ax.plot([row['time_lo'], row['time_up']],
+                                    [row['meas_value'], row['meas_value']], '-', color=color,
+                                    linewidth=sigmoid(-row['meas_std']))
+                            if row['time_lo'] == row['time_up']:
+                                ax.plot(row['time_lo'], row['meas_value'], '.', color=color,
+                                        markersize=5*sigmoid(-row['meas_std']))
