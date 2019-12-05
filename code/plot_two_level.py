@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+from matplotlib import cm
 from typing import List
 from dismod_output import DismodOutput
 import dismod_at
@@ -70,6 +71,42 @@ class PlotTwoLevel:
             plt.hist(residuals, bins=bins)
         plt.xlabel('residual')
         plt.title('histogram for residuals, ' + location)
+
+    def plot_data_direct(self, location: str, measurement: str):
+        data_sub = self.data_values[(self.data_values['integrand'] == measurement) &
+                                    (self.data_values['node'] == location)].copy()
+        data_sub['age_mid'] = (data_sub['age_lo'] + data_sub['age_up'])/2.
+        data_sub['year_mid'] = (data_sub['time_lo'] + data_sub['time_up'])/2.
+        fig, axes = plt.subplots(1, 3, figsize=(15, 5))
+        im = axes[0].scatter(data_sub['age_mid'].values, data_sub['year_mid'].values, c=data_sub['meas_value'].values,
+                             cmap=cm.viridis)
+        axes[0].set_xlabel('age')
+        axes[0].set_ylabel('year')
+        axes[0].set_title('measurement value')
+        fig.colorbar(im, ax=axes[0])
+
+        idx = data_sub['meas_value'].values == 0.0
+        axes[0].scatter(data_sub['age_mid'].values[idx],
+                        data_sub['year_mid'].values[idx], color="r")
+
+        im = axes[1].scatter(data_sub['age_mid'].values, data_sub['year_mid'].values,
+                             c=data_sub['avgint'].values,
+                             cmap=cm.viridis)
+        axes[1].set_xlabel('age')
+        axes[1].set_ylabel('year')
+        axes[1].set_title('fitted value')
+        fig.colorbar(im, ax=axes[1])
+
+        im = axes[2].scatter(data_sub['age_mid'].values, data_sub['year_mid'].values,
+                             c=data_sub['residual'].values,
+                             cmap=cm.viridis)
+        axes[2].set_xlabel('age')
+        axes[2].set_ylabel('year')
+        axes[2].set_title('normalized residual')
+        fig.colorbar(im, ax=axes[2])
+
+
+
 
     def plot_change_over_age(self, type: str, name: str, measurement: str, locations: str,
                              time_idx: List[int] = None, legend: bool = True, ylim: List[float] = None,
@@ -180,7 +217,6 @@ class PlotTwoLevel:
                 ax.set_xlabel('year')
                 ax.set_ylabel(type+' '+name)
                 ax.set_title(location + ": " + name+' plot across time')
-                k += 1
                 if legend:
                     ax.legend()
                 if plot_data:
