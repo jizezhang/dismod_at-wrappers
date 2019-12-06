@@ -20,6 +20,7 @@ class DismodDB:
                  rate_child_priors: List[Tuple[Dict[str, str], ...]],
                  meas_noise_density: Dict[str, Dict[str, Any]],
                  path_to_db: str,
+                 subgroup_value_prior: Dict[str, str] = None,
                  covariates: List[Dict[str, str]] = None,
                  cov_priors: List[Dict[str, str]] = None,
                  age_list: List[int] = None, time_list: List[int] = None,
@@ -36,6 +37,11 @@ class DismodDB:
         self.meas_noise_density = meas_noise_density
         self.rates = rates
         self.data = data
+        if 'group' not in self.data.columns:
+            self.data['group'] = 'none'
+            self.groups = ['none']
+        else:
+            self.groups = set(self.data['group'].values)
         self.n = self.data.shape[0]
         if covariates is not None:
             self.m = len(covariates)
@@ -49,6 +55,11 @@ class DismodDB:
             self.cov_priors = cov_priors
         else:
             self.cov_priors = []
+
+        self.subgroup_value_prior = {'name': 'prior_intercept_sub', 'density': 'uniform',
+                                     'lower': 0.0, 'upper': 0.0, 'mean': 0.0}
+        if subgroup_value_prior is not None:
+            self.subgroup_value_prior.update(subgroup_value_prior)
 
         self.path = path_to_db
 
@@ -117,6 +128,11 @@ class DismodDB:
         time_list = sorted(list(set(time_list)))
         return time_list
 
+    def create_subgroup_table(self):
+        self.subgroup_table = [{'subgroup': 'none', 'group': 'none'}]
+        if len(self.groups) > 1:
+            self.subgroup_table.append([{'subgroup': group, 'group': 'all'} for group in self.groups])
+
     def create_cov_table(self):
         self.covariate_table = [{'name': 'gamma_one', 'reference': 0.0}, {'name': 'intercept', 'reference': 0.0}]
         for cov in self.covariates:
@@ -124,12 +140,16 @@ class DismodDB:
 
     def create_mulcov_table(self):
         self.mulcov_table = [{'covariate': 'gamma_one', 'type': 'meas_noise',
-                         'effected': 'Sincidence', 'smooth': 'smooth_gamma_one'},
-                        {'covariate': 'intercept', 'type': 'rate_value',
-                         'effected': 'iota', 'smooth': 'smooth_intercept'}]
+                              'effected': 'Sincidence', 'group': 'none',
+                              'smooth': 'smooth_gamma_one'},
+                             {'covariate': 'intercept', 'type': 'rate_value',
+                              'effected': 'iota', 'group': 'none',
+                              'smooth': 'smooth_intercept',
+                              'subsmooth': 'subsmooth_intercept'}]
         for cov in self.covariates:
             self.mulcov_table.append({'covariate': cov['name'], 'type': cov['type'],
-                                 'effected': cov['effected'], 'smooth': 'smooth_mulcov_' + cov['name']})
+                                      'effected': cov['effected'], 'group': 'none',
+                                      'smooth': 'smooth_mulcov_' + cov['name']})
 
     def create_data_table(self):
         self.data_table = list()
@@ -143,6 +163,7 @@ class DismodDB:
             if self.data.loc[data_id, 'measure'] in self.integrand and \
                     self.data.loc[data_id, 'location_name'] in self.location_names:
                 row['node'] = self.data.loc[data_id, 'location_name']
+                row['subgroup'] = self.data.loc[data_id, 'group']
                 row['integrand'] = self.data.loc[data_id, 'measure']
                 row.update(self.meas_noise_density[row['integrand']])
                 if 'hold_out' in self.data.columns:
@@ -169,17 +190,19 @@ class DismodDB:
         for rate in self.rates:
             for age in self.age_list:
                 for time in self.time_list:
-                    for loc in self.location_names:
-                        row['integrand'] = rate_to_integrand[rate]
-                        used.add(rate_to_integrand[rate])
-                        row['node'] = loc
-                        row['age_lower'] = age
-                        row['age_upper'] = age
-                        row['time_lower'] = time
-                        row['time_upper'] = time
+                    for group in self.groups:
+                        for loc in self.location_names:
+                            row['integrand'] = rate_to_integrand[rate]
+                            used.add(rate_to_integrand[rate])
+                            row['node'] = loc
+                            row['subgroup'] = group
+                            row['age_lower'] = age
+                            row['age_upper'] = age
+                            row['time_lower'] = time
+                            row['time_upper'] = time
+                            self.avgint_table.append(copy.copy(row))
+                        row['node'] = 'all'
                         self.avgint_table.append(copy.copy(row))
-                    row['node'] = 'all'
-                    self.avgint_table.append(copy.copy(row))
 
         #for i in range(len(self.covariates)):
         #    assert self.mulcov_table[i+2]['covariate'] == self.covariates[i]['name']
@@ -224,7 +247,12 @@ class DismodDB:
                              {'name': 'smooth_intercept',
                               'age_id': [int(len(self.age_list)/2)],
                               'time_id': [int(len(self.time_list)/2)],
-                              'fun': lambda a, t: ('prior_intercept', None, None)}]
+                              'fun': lambda a, t: ('prior_intercept', None, None)},
+                             {'name': 'subsmooth_intercept',
+                              'age_id': [int(len(self.age_list) / 2)],
+                              'time_id': [int(len(self.time_list) / 2)],
+                              'fun': lambda a, t: ('prior_intercept_sub', None, None)},
+                             ]
         for rate in self.rates:
             self.smooth_table.append({'name': 'smooth_rate_' + rate,
                                       'age_id': range(len(self.age_list)), 'time_id': range(len(self.time_list)),
@@ -261,6 +289,7 @@ class DismodDB:
                              'lower': 0.0, 'mean': 0.0, 'upper': 0.0},
                             {'name': 'prior_intercept', 'density': 'uniform',
                              'lower': 0.0, 'mean': 0.0, 'upper': 0.0}]
+        self.prior_table.append(self.subgroup_value_prior)
         for i in range(len(self.rates)):
             self.prior_table.append({'name': 'value_prior_' + self.rates[i]})
             self.prior_table[-1].update(self.rate_parent_priors[i][0])
@@ -299,6 +328,7 @@ class DismodDB:
             {'name': 'print_level_fixed', 'value': '5'},
             {'name': 'tolerance_fixed', 'value': '1e-4'},
             {'name': 'meas_noise_effect', 'value': 'add_var_scale_all'},
+            {'name': 'zero_sum_mulcov_group', 'value': 'all'}
         ]
 
         if self.integrand == ['Sincidence']:
@@ -318,9 +348,18 @@ class DismodDB:
         for intg in self.integrand:
             self.integrand_table.append({'name': intg})
 
+        rate_to_integrand = {'iota': 'Sincidence', 'rho': 'remission', 'chi': 'mtexcess', 'omega': 'mtother'}
+        for rate in self.rates:
+            if rate_to_integrand[rate] not in self.integrand:
+                self.integrand_table.append({'name': rate_to_integrand[rate]})
+
         self.node_table = [{'name': 'all', 'parent': ''}]
         for loc in self.location_names:
             self.node_table.append({'name': loc, 'parent': 'all'})
+
+        self.subgroup_table = [{'subgroup': 'none', 'group': 'none'}]
+        if len(self.groups) > 1:
+            self.subgroup_table.append([{'subgroup': group, 'group': 'none'} for group in self.groups])
 
         self.weight_table = [{'name': 'constant', 'age_id': range(len(self.age_list)),
                          'time_id': range(len(self.time_list)), 'fun': lambda a, t: 1.0}]
@@ -367,6 +406,7 @@ class DismodDB:
             self.time_list,
             self.integrand_table,
             self.node_table,
+            self.subgroup_table,
             self.weight_table,
             self.covariate_table,
             self.avgint_table,

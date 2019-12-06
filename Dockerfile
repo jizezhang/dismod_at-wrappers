@@ -1,4 +1,4 @@
-FROM ubuntu:18.04
+FROM ubuntu:19.10
 
 
 # install all the dependency
@@ -24,22 +24,20 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y \
 	python3-xlrd \
 	python3-setuptools \
 	python3-matplotlib \
+	python3-distutils-extra \
 	vim \
 	netbase
 
-
-# install jupyter notebook
 RUN pip3 install jupyter
-RUN python3 -m pip install PyMySQL
+RUN pip3 install PyMySQL
 
-
-# clone the refered version of dismod_at repository
+# clone the referred version of dismod_at repository
 WORKDIR /home
 RUN rm -rf dismod_at
 RUN git clone https://github.com/bradbell/dismod_at.git
 WORKDIR /home/dismod_at
 RUN git pull
-RUN git checkout 22689f0d3c94bf789823a63a4e8a560291443f2f
+RUN git checkout a506b941ce378ac670022f84c8c23ab0208d9d16
 
 RUN mkdir /home/prefix
 RUN sed -i bin/run_cmake.sh -e 's|$HOME/|/home/|g'
@@ -54,10 +52,8 @@ RUN bin/example_install.sh
 RUN sed -i bin/run_cmake.sh -e "s|^build_type=.*|build_type='release'|"
 RUN bin/example_install.sh
 
-
-# remove the repo to save space
 WORKDIR /home
-RUN rm -rf dismod_at.git
+RUN rm -rf dismod_at
 
 # add jupyter config file
 RUN mkdir /root/.jupyter
@@ -71,7 +67,7 @@ ENV BUILD_TYPE="release"
 ENV PATH="/home/prefix/dismod_at.${BUILD_TYPE}/bin:${PATH}"
 ENV LD_LIBRARY_PATH="/home/prefix/dismod_at.${BUILD_TYPE}/lib64:${LD_LIBRARY_PATH}"
 ENV PKG_CONFIG_PATH="/home/prefix/dismod_at.${BUILD_TYPE}/lib64/pkgconfig"
-ENV PYTHONPATH="/home/prefix/dismod_at.${BUILD_TYPE}/lib/python3.6/site-packages"
+ENV PYTHONPATH="/home/prefix/dismod_at.${BUILD_TYPE}/lib/python3.7/site-packages"
 
 
 # start in the /home/work directory
