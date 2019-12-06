@@ -38,8 +38,8 @@ class DismodDB:
         self.rates = rates
         self.data = data
         if 'group' not in self.data.columns:
-            self.data['group'] = 'none'
-            self.groups = ['none']
+            self.data['all'] = 'all'
+            self.groups = ['all']
         else:
             self.groups = set(self.data['group'].values)
         self.n = self.data.shape[0]
@@ -59,6 +59,7 @@ class DismodDB:
         self.subgroup_value_prior = {'name': 'prior_intercept_sub', 'density': 'uniform',
                                      'lower': 0.0, 'upper': 0.0, 'mean': 0.0}
         if subgroup_value_prior is not None:
+            self.subgroup_value_prior = {'name': 'prior_intercept_sub'}
             self.subgroup_value_prior.update(subgroup_value_prior)
 
         self.path = path_to_db
@@ -128,10 +129,10 @@ class DismodDB:
         time_list = sorted(list(set(time_list)))
         return time_list
 
-    def create_subgroup_table(self):
-        self.subgroup_table = [{'subgroup': 'none', 'group': 'none'}]
-        if len(self.groups) > 1:
-            self.subgroup_table.append([{'subgroup': group, 'group': 'all'} for group in self.groups])
+    # def create_subgroup_table(self):
+    #     self.subgroup_table = [{'subgroup': 'all', 'group': 'all'}]
+    #     if len(self.groups) > 1:
+    #         self.subgroup_table.append([{'subgroup': group, 'group': 'all'} for group in self.groups])
 
     def create_cov_table(self):
         self.covariate_table = [{'name': 'gamma_one', 'reference': 0.0}, {'name': 'intercept', 'reference': 0.0}]
@@ -140,15 +141,15 @@ class DismodDB:
 
     def create_mulcov_table(self):
         self.mulcov_table = [{'covariate': 'gamma_one', 'type': 'meas_noise',
-                              'effected': 'Sincidence', 'group': 'none',
+                              'effected': 'Sincidence', 'group': 'all',
                               'smooth': 'smooth_gamma_one'},
                              {'covariate': 'intercept', 'type': 'rate_value',
-                              'effected': 'iota', 'group': 'none',
+                              'effected': 'iota', 'group': 'all',
                               'smooth': 'smooth_intercept',
                               'subsmooth': 'subsmooth_intercept'}]
         for cov in self.covariates:
             self.mulcov_table.append({'covariate': cov['name'], 'type': cov['type'],
-                                      'effected': cov['effected'], 'group': 'none',
+                                      'effected': cov['effected'], 'group': 'all',
                                       'smooth': 'smooth_mulcov_' + cov['name']})
 
     def create_data_table(self):
@@ -290,6 +291,7 @@ class DismodDB:
                             {'name': 'prior_intercept', 'density': 'uniform',
                              'lower': 0.0, 'mean': 0.0, 'upper': 0.0}]
         self.prior_table.append(self.subgroup_value_prior)
+
         for i in range(len(self.rates)):
             self.prior_table.append({'name': 'value_prior_' + self.rates[i]})
             self.prior_table[-1].update(self.rate_parent_priors[i][0])
@@ -357,18 +359,18 @@ class DismodDB:
         for loc in self.location_names:
             self.node_table.append({'name': loc, 'parent': 'all'})
 
-        self.subgroup_table = [{'subgroup': 'none', 'group': 'none'}]
+        self.subgroup_table = [{'subgroup': 'all', 'group': 'all'}]
         if len(self.groups) > 1:
-            self.subgroup_table.append([{'subgroup': group, 'group': 'none'} for group in self.groups])
+            self.subgroup_table = [{'subgroup': group, 'group': 'all'} for group in self.groups]
 
         self.weight_table = [{'name': 'constant', 'age_id': range(len(self.age_list)),
-                         'time_id': range(len(self.time_list)), 'fun': lambda a, t: 1.0}]
+                              'time_id': range(len(self.time_list)), 'fun': lambda a, t: 1.0}]
 
         self.rate_table = list()
         for rate in self.rates:
             self.rate_table.append({'name': rate,
-                               'parent_smooth': 'smooth_rate_' + rate,
-                               'child_smooth': 'smooth_rate_child_' + rate})
+                                    'parent_smooth': 'smooth_rate_' + rate,
+                                    'child_smooth': 'smooth_rate_child_' + rate})
 
     def set_tol(self, tol: float):
         self.option_table[self.option_name_id['tolerance_fixed']]['value'] = str(tol)
