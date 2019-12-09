@@ -20,7 +20,7 @@ class DismodDB:
                  rate_child_priors: List[Tuple[Dict[str, str], ...]],
                  meas_noise_density: Dict[str, Dict[str, Any]],
                  path_to_db: str,
-                 subgroup_value_prior: Dict[str, str] = None,
+                 group_value_prior: Dict[str, str] = None,
                  covariates: List[Dict[str, str]] = None,
                  cov_priors: List[Dict[str, str]] = None,
                  age_list: List[int] = None, time_list: List[int] = None,
@@ -37,11 +37,12 @@ class DismodDB:
         self.meas_noise_density = meas_noise_density
         self.rates = rates
         self.data = data
-        if 'group' not in self.data.columns:
-            self.data['all'] = 'all'
+        if 'group' not in self.data.columns or len(set(self.data['group'].values)) == 1:
+            self.data['group'] = 'all'
             self.groups = ['all']
         else:
             self.groups = set(self.data['group'].values)
+
         self.n = self.data.shape[0]
         if covariates is not None:
             self.m = len(covariates)
@@ -58,9 +59,9 @@ class DismodDB:
 
         self.subgroup_value_prior = {'name': 'prior_intercept_sub', 'density': 'uniform',
                                      'lower': 0.0, 'upper': 0.0, 'mean': 0.0}
-        if subgroup_value_prior is not None:
+        if group_value_prior is not None:
             self.subgroup_value_prior = {'name': 'prior_intercept_sub'}
-            self.subgroup_value_prior.update(subgroup_value_prior)
+            self.subgroup_value_prior.update(group_value_prior)
 
         self.path = path_to_db
 
@@ -213,16 +214,18 @@ class DismodDB:
             if integrand not in used:
                 for age in self.age_list:
                     for time in self.time_list:
-                        for loc in self.location_names:
-                            row['integrand'] = integrand
-                            row['node'] = loc
-                            row['age_lower'] = age
-                            row['age_upper'] = age
-                            row['time_lower'] = time
-                            row['time_upper'] = time
+                        for group in self.groups:
+                            for loc in self.location_names:
+                                row['integrand'] = integrand
+                                row['node'] = loc
+                                row['subgroup'] = group
+                                row['age_lower'] = age
+                                row['age_upper'] = age
+                                row['time_lower'] = time
+                                row['time_upper'] = time
+                                self.avgint_table.append(copy.copy(row))
+                            row['node'] = 'all'
                             self.avgint_table.append(copy.copy(row))
-                        row['node'] = 'all'
-                        self.avgint_table.append(copy.copy(row))
 
         # for i in range(len(self.covariates)):
         #     for age in self.age_list:

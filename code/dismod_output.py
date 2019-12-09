@@ -45,7 +45,24 @@ class DismodOutput:
         age = pd.read_sql_query("select age from age;", conn)
         time = pd.read_sql_query("select time from time", conn)
         conn.close()
-        return age.values.squeeze(), time.values.squeeze()
+        if len(age.values) == 1:
+            ages = age.values[0]
+        else:
+            ages = age.values.squeeze()
+        if len(time.values) == 1:
+            times = time.values[0]
+        else:
+            times = time.values.squeeze()
+        return ages, times
+
+    def get_subgroup_names(self):
+        conn = sqlite3.connect(self.path_to_db)
+        df = pd.read_sql_query("select subgroup_id, subgroup_name from subgroup;", conn)
+        subgroup_id_to_name = {}
+        for i, row in df.iterrows():
+            subgroup_id_to_name[row['subgroup_id']] = row['subgroup_name']
+        # print(node_id_to_name)
+        return subgroup_id_to_name
 
     def get_node_names(self):
         conn = sqlite3.connect(self.path_to_db)
@@ -53,7 +70,7 @@ class DismodOutput:
         node_id_to_name = {}
         for i, row in df.iterrows():
             node_id_to_name[row['node_id']] = row['node_name']
-        print(node_id_to_name)
+        #print(node_id_to_name)
         return node_id_to_name
 
     def get_covarates_names(self):
@@ -85,10 +102,12 @@ class DismodOutput:
             conn = sqlite3.connect(self.path_to_db)
         else:
             conn = sqlite3.connect(path_to_db)
-        df = pd.read_sql_query("select node.node_name, integrand.integrand_name, avgint.*, avg_integrand \
+        df = pd.read_sql_query("select node.node_name, subgroup.subgroup_name, integrand.integrand_name, avgint.*, \
+                                avg_integrand \
                                 from avgint \
                                 inner join predict on avgint.avgint_id == predict.avgint_id \
                                 inner join node on node.node_id == avgint.node_id \
+                                inner join subgroup on subgroup.subgroup_id == avgint.subgroup_id \
                                 inner join integrand on avgint.integrand_id == integrand.integrand_id;", conn)
         conn.close()
         return df
@@ -150,6 +169,7 @@ class DismodOutput:
                                             row_list.append(row + [sex_id] + covs)
                                     else:
                                         row_list.append(row + [sex_id] + covs)
+
         dismod_at.create_table(connection, 'avgint', ['integrand_id', 'node_id', 'weight_id', 'age_lower', 'age_upper',
                                                       'time_lower', 'time_upper'] +
                                ['location_id', 'age_group_id', 'year_id', 'measure_id', 'sex_id'] +
