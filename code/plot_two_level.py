@@ -91,8 +91,9 @@ class PlotTwoLevel:
     def plot_data_direct(self, location: str, measurement: str, group: str = "all"):
         if group not in self.group_name_to_id.values():
             print('must input a group name that exists in data.')
+        print(type(str(self.data_values.loc[0, 'subgroup'])), str(self.data_values.loc[0, 'subgroup']) == group)
         data_sub = self.data_values[(self.data_values['integrand'] == measurement) &
-                                    (self.data_values['subgroup'] == group) &
+                                    (self.data_values['subgroup'].astype("str") == str(group)) &
                                     (self.data_values['node'] == location)].copy()
         data_sub['age_mid'] = (data_sub['age_lo'] + data_sub['age_up'])/2.
         data_sub['year_mid'] = (data_sub['time_lo'] + data_sub['time_up'])/2.
@@ -136,7 +137,7 @@ class PlotTwoLevel:
             if type == 'rate':
                 var = self.integrand_values[(self.integrand_values['integrand_name'] == self.rate_to_integrand[name]) &
                                             (self.integrand_values['node_name'] == location) &
-                                            (self.integrand_values['subgroup_name'] == group)]
+                                            (self.integrand_values['subgroup_name'].astype("str") == str(group))]
             #elif type == 'covariate':
             #    var = self.integrand_values[(self.integrand_values['integrand_name'] == self.cov_name_to_id[name]) &
             #                                (self.integrand_values['node_name'] == location)]
@@ -170,7 +171,7 @@ class PlotTwoLevel:
                     data = self.data_values[self.data_values['node'] == location]
                 data_sub = data[(data['time_lo'] <= self.time_list[i]) &
                                 (data['time_up'] >= self.time_list[i]) &
-                                (data['subgroup'] == group) &
+                                (data['subgroup'].astype("str") == str(group)) &
                                 (data['integrand'] == measurement)]
                 Z = values[loc_i]
                 #print(self.age_list, Z.shape)
@@ -191,7 +192,6 @@ class PlotTwoLevel:
                         if row['age_lo'] == row['age_up']:
                             ax.plot(row['age_lo'], row['meas_value'], '.', color=color,
                                     markersize=5*sigmoid(-row['meas_std']))
-        return values
 
     def plot_change_over_time(self, type: str, name: str, measurement: str, locations: str, group: str = "all",
                              age_idx: List[int] = None, legend: bool = True, ylim: List[float] = None,
@@ -204,7 +204,7 @@ class PlotTwoLevel:
             if type == 'rate':
                 var = self.integrand_values[(self.integrand_values['integrand_name'] == self.rate_to_integrand[name]) &
                                             (self.integrand_values['node_name'] == location) &
-                                            (self.integrand_values['subgroup_name'] == group)]
+                                            (self.integrand_values['subgroup_name'].astype("str") == str(group))]
             #elif type == 'covariate':
             #    var = self.integrand_values[(self.integrand_values['integrand_name'] == self.cov_name_to_id[name]) &
             #                                (self.integrand_values['node_name'] == location)]
@@ -236,7 +236,7 @@ class PlotTwoLevel:
                     data = self.data_values[self.data_values['node'] == location]
                 data_sub = data[(data['age_lo'] <= self.age_list[i]) &
                                 (data['age_up'] >= self.age_list[i]) &
-                                (data['subgroup'] == group) &
+                                (data['subgroup'].astype("str") == str(group)) &
                                 (data['integrand'] == measurement)]
                 Z = values[loc_i]
                 ax.plot(self.time_list, Z[i, :], '-', label="age " + str(self.age_list[i]))
