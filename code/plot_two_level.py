@@ -91,7 +91,7 @@ class PlotTwoLevel:
     def plot_data_direct(self, location: str, measurement: str, group: str = "all"):
         if group not in self.group_name_to_id.values():
             print('must input a group name that exists in data.')
-        print(type(str(self.data_values.loc[0, 'subgroup'])), str(self.data_values.loc[0, 'subgroup']) == group)
+
         data_sub = self.data_values[(self.data_values['integrand'] == measurement) &
                                     (self.data_values['subgroup'].astype("str") == str(group)) &
                                     (self.data_values['node'] == location)].copy()

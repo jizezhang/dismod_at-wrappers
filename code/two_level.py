@@ -36,6 +36,8 @@ class TwoLevel:
         self.db.set_print_level(print_level)
         if zero_sum:
             self.db.set_zero_sum_constraint()
+        else:
+            self.db.remove_zero_sum_constraint()
         self.initialize(db2csv=False)
         system_command([program, self.db_path, 'fit', 'fixed'])
         system_command([program, self.db_path, 'predict', 'fit_var'])
@@ -57,6 +59,8 @@ class TwoLevel:
             self.db.set_print_level(print_level)
             if zero_sum:
                 self.db.set_zero_sum_constraint()
+            else:
+                self.db.remove_zero_sum_constraint()
             self.initialize(db2csv=False)
 
         if fit_gaussian:

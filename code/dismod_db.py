@@ -143,11 +143,12 @@ class DismodDB:
     def create_mulcov_table(self):
         self.mulcov_table = [{'covariate': 'gamma_one', 'type': 'meas_noise',
                               'effected': 'Sincidence', 'group': 'all',
-                              'smooth': 'smooth_gamma_one'},
-                             {'covariate': 'intercept', 'type': 'rate_value',
-                              'effected': 'iota', 'group': 'all',
+                              'smooth': 'smooth_gamma_one'}]
+        for integrand in self.integrand:
+            self.mulcov_table.append({'covariate': 'intercept', 'type': 'meas_value',
+                              'effected': integrand, 'group': 'all',
                               'smooth': 'smooth_intercept',
-                              'subsmooth': 'subsmooth_intercept'}]
+                              'subsmooth': 'subsmooth_intercept'})
         for cov in self.covariates:
             self.mulcov_table.append({'covariate': cov['name'], 'type': cov['type'],
                                       'effected': cov['effected'], 'group': 'all',
@@ -327,7 +328,7 @@ class DismodDB:
     def create_option_table(self):
         self.option_table = [
             {'name': 'parent_node_name', 'value': 'all'},
-            {'name': 'ode_step_size', 'value': '10.0'},
+            {'name': 'ode_step_size', 'value': '5.0'},
             {'name': 'quasi_fixed', 'value': 'false'},
             {'name': 'max_num_iter_fixed', 'value': '200'},
             {'name': 'print_level_fixed', 'value': '5'},
@@ -386,13 +387,13 @@ class DismodDB:
 
     def set_zero_sum_constraint(self):
         if 'zero_sum_random' not in self.option_name_id:
-            self.option_table.append({'name': 'zero_sum_random', 'value': ' '.join(self.rates)})
+            self.option_table.append({'name': 'zero_sum_child_rate', 'value': ' '.join(self.rates)})
             n = len(self.option_name_id)
             self.option_name_id['zero_sum_random'] = n
 
     def remove_zero_sum_constraint(self):
         if 'zero_sum_random' in self.option_name_id:
-            self.option_table[self.option_name_id['zero_sum_random']]['value'] = ''
+            self.option_table[self.option_name_id['zero_sum_child_rate']]['value'] = ''
 
 
     def set_meas_density(self, density: str):
