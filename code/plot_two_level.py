@@ -88,7 +88,7 @@ class PlotTwoLevel:
         plt.xlabel('residual')
         plt.title('histogram for residuals')
 
-    def plot_data_direct(self, location: str, measurement: str, group: str = "all"):
+    def plot_data_age_year_pattern(self, location: str, measurement: str, group: str = "all"):
         if group not in self.group_name_to_id.values():
             print('must input a group name that exists in data.')
 
@@ -100,7 +100,7 @@ class PlotTwoLevel:
         fig, axes = plt.subplots(1, 3, figsize=(15, 5))
         fig.suptitle('plots for group ' + group)
         im = axes[0].scatter(data_sub['age_mid'].values, data_sub['year_mid'].values, c=data_sub['meas_value'].values,
-                             cmap=cm.viridis)
+                             cmap=cm.PRGn)
         axes[0].set_xlabel('age')
         axes[0].set_ylabel('year')
         axes[0].set_title('measurement value')
@@ -112,7 +112,7 @@ class PlotTwoLevel:
 
         im = axes[1].scatter(data_sub['age_mid'].values, data_sub['year_mid'].values,
                              c=data_sub['avgint'].values,
-                             cmap=cm.viridis)
+                             cmap=cm.PRGn)
         axes[1].set_xlabel('age')
         axes[1].set_ylabel('year')
         axes[1].set_title('fitted value')
@@ -120,10 +120,13 @@ class PlotTwoLevel:
 
         im = axes[2].scatter(data_sub['age_mid'].values, data_sub['year_mid'].values,
                              c=data_sub['residual'].values,
-                             cmap=cm.viridis)
+                             cmap=cm.PRGn)
         axes[2].set_xlabel('age')
         axes[2].set_ylabel('year')
         axes[2].set_title('normalized residual')
+        #idx = (abs(data_sub['residual'].values) <= 1e-2)
+        #axes[2].scatter(data_sub['age_mid'].values[idx],
+        #                data_sub['year_mid'].values[idx], marker='o', facecolors='none', edgecolor='k')
         fig.colorbar(im, ax=axes[2])
 
     def plot_change_over_age(self, type: str, name: str, measurement: str, locations: str, group: str = "all",
