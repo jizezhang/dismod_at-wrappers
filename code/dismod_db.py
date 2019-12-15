@@ -21,7 +21,7 @@ class DismodDB:
                  meas_noise_density: Dict[str, Dict[str, Any]],
                  path_to_db: str,
                  group_value_prior: Dict[str, str] = None,
-                 covariates: List[Dict[str, str]] = None,
+                 covariates: List[Tuple[Dict[str, str], List[int]]] = None,
                  cov_priors: List[Dict[str, str]] = None,
                  age_list: List[int] = None, time_list: List[int] = None,
                  child_grid: str = "one"):
@@ -138,7 +138,7 @@ class DismodDB:
     def create_cov_table(self):
         self.covariate_table = [{'name': 'gamma_one', 'reference': 0.0}, {'name': 'intercept', 'reference': 0.0}]
         for cov in self.covariates:
-            self.covariate_table.append({'name': cov['name'], 'reference': 0.0})
+            self.covariate_table.append({'name': cov[0]['name'], 'reference': 0.0})
 
     def create_mulcov_table(self):
         self.mulcov_table = [{'covariate': 'gamma_one', 'type': 'meas_noise',
@@ -150,9 +150,9 @@ class DismodDB:
                               'smooth': 'smooth_intercept',
                               'subsmooth': 'subsmooth_intercept'})
         for cov in self.covariates:
-            self.mulcov_table.append({'covariate': cov['name'], 'type': cov['type'],
-                                      'effected': cov['effected'], 'group': 'all',
-                                      'smooth': 'smooth_mulcov_' + cov['name']})
+            self.mulcov_table.append({'covariate': cov[0]['name'], 'type': cov[0]['type'],
+                                      'effected': cov[0]['effected'], 'group': 'all',
+                                      'smooth': 'smooth_mulcov_' + cov[0]['name']})
 
     def create_data_table(self):
         self.data_table = list()
@@ -178,7 +178,7 @@ class DismodDB:
                 row['time_lower'] = self.data.loc[data_id, 'year_start']
                 row['time_upper'] = self.data.loc[data_id, 'year_end']
                 for cov in self.covariates:
-                    row[cov['name']] = self.data.loc[data_id, cov['name']]
+                    row[cov[0]['name']] = self.data.loc[data_id, cov[0]['name']]
                 self.data_table.append(copy.copy(row))
 
     def create_avgint_table(self):
@@ -189,7 +189,7 @@ class DismodDB:
 
         self.avgint_table = []
         row = {'intercept': 1.0, 'weight': 'constant', 'gamma_one': 1.0}
-        row.update({cov['name']: 0.0 for cov in self.covariates})
+        row.update({cov[0]['name']: 0.0 for cov in self.covariates})
         for rate in self.rates:
             for age in self.age_list:
                 for time in self.time_list:
@@ -284,10 +284,22 @@ class DismodDB:
                                                                        'dtime_prior_child_' + r)})
 
         for cov in self.covariates:
-            name = cov['name']
-            self.smooth_table.append({'name': 'smooth_mulcov_' + cov['name'],
-                                      'age_id': [len(self.age_list)//2], 'time_id': [len(self.time_list)//2],
-                                      'fun': lambda a, t, name=name: ('value_prior_' + name, None, None)})
+            name = cov[0]['name']
+            age_min = -float('inf')
+            age_max = float('inf')
+            if cov[1] is not None:
+                age_min = cov[1][0]
+                age_max = cov[1][1]
+
+            def fun(a, t, na):
+                if age_min - .5 <= a <= age_min + .5 or age_max -.5 <= a <= age_max + .5:
+                    return ('value_prior_' + na, 'prior_zero', None)
+                else:
+                    return (0.0, None, None)
+
+            self.smooth_table.append({'name': 'smooth_mulcov_' + cov[0]['name'],
+                                      'age_id': range(len(self.age_list)), 'time_id': [len(self.time_list)//2],
+                                      'fun': lambda a, t: fun(a, t, name)})
 
     def create_prior_table(self):
         self.prior_table = [{'name': 'prior_gamma_one', 'density': 'uniform',
@@ -318,12 +330,15 @@ class DismodDB:
                 self.prior_table[-1].update({'density': 'uniform', 'mean': 0.0, 'upper': 0.0, 'lower': 0.0})
 
         for i in range(len(self.covariates)):
-            self.prior_table.append({'name': 'value_prior_' + self.covariates[i]['name']})
+            self.prior_table.append({'name': 'value_prior_' + self.covariates[i][0]['name']})
             self.prior_table[-1].update(self.cov_priors[i])
             #self.prior_table.append({'name': 'dage_prior_' + self.covariates[i]['name']})
             #self.prior_table[-1].update(self.cov_priors[i][1])
             #self.prior_table.append({'name': 'dtime_prior_' + self.covariates[i]['name']})
             #self.prior_table[-1].update(self.cov_priors[i][2])
+
+        self.prior_table.append({'name': 'prior_zero', 'density': 'gaussian',
+                                 'upper': 0.0, 'lower': 0.0, 'mean': 0.0, 'std': 1e-10})
 
     def create_option_table(self):
         self.option_table = [

@@ -88,10 +88,11 @@ class DismodOutput:
 
     def get_covariate_multiplier_values(self, cov_names: List[str] = None):
         conn = sqlite3.connect(self.path_to_db)
-        df = pd.read_sql_query("select covariate_name, fit_var_value \
+        df = pd.read_sql_query("select age.age, covariate_name, fit_var_value \
                                from covariate inner join mulcov on covariate.covariate_id == mulcov.covariate_id \
                                left join var on mulcov.covariate_id == var.covariate_id \
-                               left join fit_var on fit_var.fit_var_id == var.var_id;", conn)
+                               left join fit_var on fit_var.fit_var_id == var.var_id \
+                               left join age on var.age_id == age.age_id;", conn)
         conn.close()
         if cov_names is not None:
             return df[df['covariate_name'].isin(cov_names)]
