@@ -291,15 +291,29 @@ class DismodDB:
                 age_min = cov[1][0]
                 age_max = cov[1][1]
 
-            def fun(a, t, na):
-                if age_min - .5 <= a <= age_min + .5 or age_max -.5 <= a <= age_max + .5:
+            age_ids = [0]
+            for i in range(len(self.age_list)-1):
+                age = self.age_list[i]
+                if age < age_min <= self.age_list[i+1]:
+                    age_ids.append(i+1)
+                elif i > 0 and age <= age_max < self.age_list[i+1]:
+                    age_ids.append(i)
+                    age_ids.append(i+1)
+            if age_ids[-1] != len(self.age_list)-1:
+                age_ids.append(len(self.age_list)-1)
+
+            def fun(a, t, na, age_min, age_max):
+                if age_min <= a <= age_max:
                     return ('value_prior_' + na, 'prior_zero', None)
-                else:
+                elif a < age_min or a >= age_max + 5:
                     return (0.0, None, None)
+                else:
+                    return ('value_prior_' + na, None, None)
 
             self.smooth_table.append({'name': 'smooth_mulcov_' + cov[0]['name'],
-                                      'age_id': range(len(self.age_list)), 'time_id': [len(self.time_list)//2],
-                                      'fun': lambda a, t: fun(a, t, name)})
+                                      'age_id': age_ids, 'time_id': [len(self.time_list)//2],
+                                      'fun': lambda a, t, na=name, age_min=age_min, age_max=age_max:
+                                      fun(a, t, na, age_min, age_max)})
 
     def create_prior_table(self):
         self.prior_table = [{'name': 'prior_gamma_one', 'density': 'uniform',
@@ -337,8 +351,8 @@ class DismodDB:
             #self.prior_table.append({'name': 'dtime_prior_' + self.covariates[i]['name']})
             #self.prior_table[-1].update(self.cov_priors[i][2])
 
-        self.prior_table.append({'name': 'prior_zero', 'density': 'gaussian',
-                                 'upper': 0.0, 'lower': 0.0, 'mean': 0.0, 'std': 1e-10})
+        self.prior_table.append({'name': 'prior_zero', 'density': 'uniform',
+                                 'upper': 0.0, 'lower': 0.0, 'mean': 0.0, 'std': 1e-40})
 
     def create_option_table(self):
         self.option_table = [
